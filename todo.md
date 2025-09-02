@@ -1,0 +1,12 @@
+- layouts
+  - big title
+  - title + list
+  - title
+- filesystem emulation
+- arbitrary object placement
+- arbitrary image placement
+- transitons/animations
+  - order / on click
+- keyboard navigate between slides
+- presenter view
+- colored/formatted/highlighted text
