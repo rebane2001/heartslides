@@ -1,6 +1,7 @@
 const slidesAside = document.querySelector("slides-aside");
 const slidesPreview = document.querySelector("slides-preview");
 const slidesPreviewDiv = document.querySelector("slides-preview > div > div");
+const slidesPreviewDivInner = document.querySelector("slides-preview > div > div > .body");
 slidesPreview.addEventListener("wheel", (e) => {
 	const deltaY = e.deltaY;
 	const zoomSpeed = 2;
@@ -52,10 +53,10 @@ slidesPreview.addEventListener("mouseup", (e) => {
 
 function updatePreview() {
 	previewNeedsUpdate = false;
-	slidesPreviewDiv.innerHTML = allSlides[0].code + editor.state.doc.toString();
+	slidesPreviewDivInner.innerHTML = allSlides[0].code + editor.state.doc.toString();
 }
 
-const editor = bundledEditor.getEditor(document.querySelector("#editorDiv"));
+let editor;
 
 let lastEditorState = null;
 let lastEditorChange = 0;
@@ -77,9 +78,9 @@ function animate() {
 
 let currentSlideIdx = 0;
 let allSlides = [
-	{name:"global",code:"",state:null},
-	{name:"Slide A",code:"",state:null},
-	{name:"Slide B",code:"",state:null},
+	{name:"global",code:"<style>.body {\n  \n}</style>",state:null},
+	{name:"Slide A",code:"<h1>Sample Text</h1>\n<style>.body {\n  \n}</style>",state:null},
+	{name:"Slide B",code:"<h1>Sample Text</h1>\n<style>.body {\n  \n}</style>",state:null},
 ];
 
 function selectSlide(i) {
@@ -102,6 +103,11 @@ function updateSlidesList() {
 	});
 }
 
+function getEditor() {
+	editor = bundledEditor.getEditor(document.querySelector("#editorDiv"), allSlides[0].code);
+	return editor;
+}
+
 /*
 let slideDb;
 
@@ -122,6 +128,7 @@ async function initData() {
 */
 async function init() {
 	//await initData();
+	getEditor();
 	updateSlidesList();
 	requestAnimationFrame(animate);
 }

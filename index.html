@@ -55,6 +55,11 @@
                     scale: calc((tan(atan2(var(--cqw), 1px)) - 32) / 1920);
                     outline: 2px solid orange;
                     position: absolute;
+                    overflow: clip;
+                    & > .body {
+                        width: 1920px;
+                        height: 1080px;
+                    }
                 }
             }
         }
@@ -91,6 +96,8 @@
     <slides-preview>
         <div>
             <div>
+                <div class="body">
+                </div>
             </div>
         </div>
     </slides-preview>
