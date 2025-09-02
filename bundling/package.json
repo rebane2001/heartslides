@@ -1,0 +1,23 @@
+{
+  "name": "heartslides-bundling",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup editor.mjs -f iife -o editor.bundle.js -p @rollup/plugin-node-resolve -n bundledEditor"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.18.7",
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.4",
+    "@codemirror/view": "^6.38.2",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "codemirror": "^6.0.2",
+    "rollup": "^4.50.0"
+  }
+}
