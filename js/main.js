@@ -1,3 +1,4 @@
+const slidesAside = document.querySelector("slides-aside");
 const slidesPreview = document.querySelector("slides-preview");
 const slidesPreviewDiv = document.querySelector("slides-preview > div > div");
 slidesPreview.addEventListener("wheel", (e) => {
@@ -51,7 +52,7 @@ slidesPreview.addEventListener("mouseup", (e) => {
 
 function updatePreview() {
 	previewNeedsUpdate = false;
-	slidesPreviewDiv.innerHTML = editor.state.doc.toString();
+	slidesPreviewDiv.innerHTML = allSlides[0].code + editor.state.doc.toString();
 }
 
 const editor = bundledEditor.getEditor(document.querySelector("#editorDiv"));
@@ -63,6 +64,7 @@ const PREVIEW_DEBOUNCE_MS = 10;
 function animate() {
 	if (editor.state != lastEditorState) {
 		lastEditorChange = Date.now();
+		allSlides[currentSlideIdx].code = editor.state.doc.toString();
 		previewNeedsUpdate = true;
 		lastEditorState = editor.state;
 	}
@@ -72,4 +74,56 @@ function animate() {
 	//editor.state.doc.toString();
 	requestAnimationFrame(animate);
 }
-requestAnimationFrame(animate);
+
+let currentSlideIdx = 0;
+let allSlides = [
+	{name:"global",code:"",state:null},
+	{name:"Slide A",code:"",state:null},
+	{name:"Slide B",code:"",state:null},
+];
+
+function selectSlide(i) {
+	allSlides[currentSlideIdx].state = editor.state;
+	const newState = allSlides[i].state ?? bundledEditor.getState(allSlides[i].code);
+	editor.setState(newState);
+	currentSlideIdx = i;
+	updateSlidesList();
+	updatePreview();
+}
+
+function updateSlidesList() {
+	slidesAside.innerText = "";
+	allSlides.forEach((e,i) => {
+		const slideListItem = document.createElement("slide-list-item");
+		slideListItem.innerText = `#${i} - ${e.name}`;
+		if (currentSlideIdx == i) slideListItem.classList.add("selected");
+		slideListItem.onclick = () => selectSlide(i);
+		slidesAside.appendChild(slideListItem);
+	});
+}
+
+/*
+let slideDb;
+
+async function initData() {
+	const request = await new Promise(function(resolve, reject) {
+		const r = window.indexedDB.open("HeartSlides", 1);
+		r.onsuccess = (e) => {
+			slideDb = e.target.result;
+			resolve(slideDb);
+		}
+		r.onerror = (e) => {
+			alert("indexedDB error");
+			console.error(e);
+			reject();
+		}
+	});
+}
+*/
+async function init() {
+	//await initData();
+	updateSlidesList();
+	requestAnimationFrame(animate);
+}
+
+init();
