@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>heartslides</title>
     <script type="text/javascript" src="bundling/editor.bundle.js"></script>
+    <script type="text/javascript" src="js/jszip.min.js"></script>
     <style>
 @property --cqw {
   syntax: '<length>';
@@ -49,16 +50,17 @@
                 height: 0px;
                 flex-grow: 0;
                 & > div {
-                    width: 1920px;
-                    height: 1080px;
+                    width: 768px;
+                    height: 432px;
                     translate: -50% -50%;
-                    scale: calc((tan(atan2(var(--cqw), 1px)) - 32) / 1920);
+                    scale: calc((tan(atan2(var(--cqw), 1px)) - 32) / 768);
                     outline: 2px solid orange;
                     position: absolute;
                     overflow: clip;
                     & > .body {
-                        width: 1920px;
-                        height: 1080px;
+                        display: inline-block;
+                        width: 768px;
+                        height: 432px;
                     }
                 }
             }
@@ -83,6 +85,23 @@
             & > div {
                 height: 100%;
             }
+        }
+        [data-code-selected] {
+            outline: 1px solid rebeccapurple;
+            background: rgb(from rebeccapurple r g b / 0.2);
+        }
+        [data-code-hover-highlight] {
+            outline: 1px solid hotpink;
+            background: rgb(from hotpink r g b / 0.2);
+        }
+        /* note: this currently needs polyfill for firefox */
+        [data-abs-x] {
+            position: absolute;
+            left: attr(data-abs-x px);
+        }
+        [data-abs-y] {
+            position: absolute;
+            top: attr(data-abs-y px);
         }
     </style>
 </head>

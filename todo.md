@@ -10,3 +10,5 @@
 - keyboard navigate between slides
 - presenter view
 - colored/formatted/highlighted text
+
+- pruning files
