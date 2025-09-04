@@ -7,6 +7,10 @@ const slidesPreview = document.querySelector("slides-preview");
 const slidesPreviewDiv = document.querySelector("slides-preview > div > div");
 const slidesPreviewDivInner = document.querySelector("slides-preview > div > div > .body");
 slidesPreview.addEventListener("wheel", (e) => {
+    if (e.buttons == 1 && draggedElIdx != -1) {
+        scrollSelected(e.deltaY, e.shiftKey);
+    }
+    if (e.buttons != 0) return;
     const deltaY = e.deltaY;
     const zoomSpeed = 2;
     const oldScale = parseFloat(getComputedStyle(slidesPreviewDiv).scale);
@@ -68,7 +72,7 @@ slidesPreview.addEventListener("mouseup", (e) => {
 
 function findElByIdx(elIdx) {
     const state = previewSlideIdx == currentSlideIdx ? editor.state : (allSlides[previewSlideIdx].state || editor.state);
-    const stateText = state.doc.toString().replace(/(<[a-z][^<>]*)>/g, "$1DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (i==elIdx?e+"DATACODESPLIT":e)).join("");
+    const stateText = state.doc.toString().replace(/(<[a-z][^<>]*?)>/g, "$1DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (i==elIdx?e+"DATACODESPLIT":e)).join("");
     const el = slidesPreviewDivInner.querySelector(`[data-code-index="${elIdx}"]`);
     return {state, stateText, el};
 }
@@ -97,13 +101,27 @@ function startDraggingSelected(target) {
     el.style.margin = oldMargin;
 }
 
+function scrollSelected(deltaY, shiftKey) {
+    // const zoomSpeed = 2;
+    // const oldScale = parseFloat(getComputedStyle(slidesPreviewDiv).scale);
+    // const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
+    if (draggedElIdx == -1) return;
+    const {state, stateText, el} = findElByIdx(draggedElIdx);
+    if (!("absS" in el.dataset))
+        el.dataset.absS = 100;
+    const zoomSpeed = shiftKey?0.1:1;
+    const oldScale = parseFloat(el.dataset.absS);
+    const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
+    el.dataset.absS = newScale;
+}
+
 function applyDrag() {
     if (draggedElIdx == -1) return;
     const {state, stateText, el} = findElByIdx(draggedElIdx);
-    const htmlText = stateText.split("DATACODESPLIT")[0].replace(/^[\s\S]*(<[a-z][^<>]*)$/m, "$1");
+    const htmlText = stateText.split("DATACODESPLIT")[0].replace(/^[\s\S]*(<[a-z][^<>]*?)$/m, "$1");
     const to = stateText.split("DATACODESPLIT")[0].length;
     const from = to - htmlText.length;
-    const newHtmlText = htmlText.replace(/data-abs-.=["'0-9\.]+/g, "").replace(/ +$/,'') + ` data-abs-x=${+parseFloat(el.dataset.absX).toFixed(3)} data-abs-y=${+parseFloat(el.dataset.absY).toFixed(3)}`;
+    const newHtmlText = htmlText.replace(/data-abs-.=["'0-9\.-]+/g, "").replace(/ +$/,'') + ` data-abs-x=${+parseFloat(el.dataset.absX).toFixed(3)} data-abs-y=${+parseFloat(el.dataset.absY).toFixed(3)}${"absS" in el.dataset?` data-abs-s=${+parseFloat(el.dataset.absS).toFixed(3)}`:``}`;
     if (previewSlideIdx != currentSlideIdx)
         selectSlide(previewSlideIdx);
     editor.dispatch({
@@ -130,12 +148,12 @@ function updatePreview() {
     let textPos = 0;
     state.selection.ranges.forEach(({from, to})=>{
         stateText += state.doc.toString().slice(textPos, from);
-        stateText += state.doc.toString().slice(from, to).replace(/(<[a-z][^<>]*)>/g, "$1 data-code-selected>");
+        stateText += state.doc.toString().slice(from, to).replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-selected>");
         textPos = to;
     });
     stateText += state.doc.toString().slice(textPos);
-    stateText = stateText.replace(/(<[a-z][^<>]*)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
-    stateText = stateText.split("FILE(").map((e,i) => (i?cachedFileData[e.split(")")[0]] + e.replace(/^.*\)/,''):e)).join("");
+    stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
+    stateText = stateText.split("FILE(").map((e,i) => (i?cachedFileData[e.split(")")[0]] + e.replace(/^.*?\)/,''):e)).join("");
     slidesPreviewDivInner.innerHTML = allSlides[0].code + stateText;
 }
 
