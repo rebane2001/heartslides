@@ -1,21 +1,28 @@
-const PROJECT_NAME = "project_1";
+// const PROJECT_NAME = "project_1";
+const PROJECT_NAME = "css_bsides_tll_2025";
 const SLIDE_WIDTH = 768;
 const SLIDE_HEIGHT = 432;
+let isPresenting = false;
+let isEditing = true;
 
 const slidesAside = document.querySelector("slides-aside");
 const slidesPreview = document.querySelector("slides-preview");
 const slidesPreviewDiv = document.querySelector("slides-preview > div > div");
+const slidesPreviewDivGlobal = document.querySelector("slides-preview > div > div > .global");
 const slidesPreviewDivInner = document.querySelector("slides-preview > div > div > .body");
 slidesPreview.addEventListener("wheel", (e) => {
+    if (e.ctrlKey) e.preventDefault();
     if (e.buttons == 1 && draggedElIdx != -1) {
-        scrollSelected(e.deltaY, e.shiftKey);
+        scrollSelected(e.deltaY, e.altKey, e.shiftKey);
     }
     if (e.buttons != 0) return;
-    const deltaY = e.deltaY;
-    const zoomSpeed = 2;
-    const oldScale = parseFloat(getComputedStyle(slidesPreviewDiv).scale);
-    const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
-    slidesPreviewDiv.style.scale = newScale;
+    if (isEditing || e.ctrlKey) {
+        const deltaY = e.deltaY;
+        const zoomSpeed = 2;
+        const oldScale = parseFloat(getComputedStyle(slidesPreviewDiv).scale);
+        const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
+        slidesPreviewDiv.style.scale = newScale;
+    }
 });
 
 function dragSlidesPreview(x,y) {
@@ -25,6 +32,8 @@ function dragSlidesPreview(x,y) {
     slidesPreviewDiv.style.transform = `translate(${slidesPreviewX}px, ${slidesPreviewY}px)`;
 }
 
+let mouseHidden = false;
+let lastMouseMove = 0;
 let lastMiddleMouseDown = 0;
 let lastMouseX = 0;
 let lastMouseY = 0;
@@ -33,6 +42,11 @@ let dragMouseY = 0;
 let slidesPreviewX = 0;
 let slidesPreviewY = 0;
 slidesPreview.addEventListener("mousedown", (e) => {
+    if (isPresenting && (e.which == 1 || e.which == 3)) {
+        if (e.which == 1) nextSlide();
+        if (e.which == 3) prevSlide();
+        e.preventDefault();
+    }
     if (e.which == 1) {
         startDraggingSelected(e.target);
         e.preventDefault();
@@ -50,6 +64,11 @@ slidesPreview.addEventListener("mousemove", (e) => {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
     lastMiddleMouseDown = 0;
+    lastMouseMove = Date.now();
+    if (mouseHidden) {
+        document.body.style.cursor = "";
+        mouseHidden = false;
+    }
 });
 slidesPreview.addEventListener("mouseup", (e) => {
     if (e.which == 1) {
@@ -79,6 +98,7 @@ function findElByIdx(elIdx) {
 
 function highlightHoverEl(el) {
     document.querySelectorAll("[data-code-hover-highlight]").forEach(e=>delete e.dataset.codeHoverHighlight);
+    if (!isEditing) return;
     if (el && "codeIndex" in el.dataset) el.dataset.codeHoverHighlight = 1;
 }
 
@@ -88,10 +108,15 @@ function startDraggingSelected(target) {
         draggedElIdx = -1;
         return;
     }
+    if (!isEditing) return;
     draggedElIdx = parseInt(target.dataset.codeIndex);
     const {state, stateText, el} = findElByIdx(draggedElIdx);
     const oldMargin = el.style.margin;
+    const oldScale = el.style.scale;
+    const oldRotate = el.style.rotate;
     el.style.margin = "0px";
+    el.style.scale = "100%";
+    el.style.rotate = "0deg";
     const sldRect = slidesPreviewDivInner.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     const absX = (elRect.x - sldRect.x)/sldRect.width*SLIDE_WIDTH;
@@ -99,20 +124,24 @@ function startDraggingSelected(target) {
     el.dataset.absX = absX;
     el.dataset.absY = absY;
     el.style.margin = oldMargin;
+    el.style.scale = oldScale;
+    el.style.rotate = oldRotate;
 }
 
-function scrollSelected(deltaY, shiftKey) {
-    // const zoomSpeed = 2;
-    // const oldScale = parseFloat(getComputedStyle(slidesPreviewDiv).scale);
-    // const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
+function scrollSelected(deltaY, altKey, shiftKey) {
     if (draggedElIdx == -1) return;
     const {state, stateText, el} = findElByIdx(draggedElIdx);
-    if (!("absS" in el.dataset))
-        el.dataset.absS = 100;
-    const zoomSpeed = shiftKey?0.1:1;
-    const oldScale = parseFloat(el.dataset.absS);
-    const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
-    el.dataset.absS = newScale;
+    if (altKey) { // rotation
+        const rotSpeed = shiftKey?0.1:1;
+        el.dataset.absR = parseFloat(el.dataset?.absR ?? 0) + deltaY*rotSpeed/100;
+    } else { // scale
+        if (!("absS" in el.dataset))
+            el.dataset.absS = 100;
+        const zoomSpeed = shiftKey?0.1:1;
+        const oldScale = parseFloat(el.dataset.absS);
+        const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
+        el.dataset.absS = newScale;
+    }
 }
 
 function applyDrag() {
@@ -121,7 +150,7 @@ function applyDrag() {
     const htmlText = stateText.split("DATACODESPLIT")[0].replace(/^[\s\S]*(<[a-z][^<>]*?)$/m, "$1");
     const to = stateText.split("DATACODESPLIT")[0].length;
     const from = to - htmlText.length;
-    const newHtmlText = htmlText.replace(/data-abs-.=["'0-9\.-]+/g, "").replace(/ +$/,'') + ` data-abs-x=${+parseFloat(el.dataset.absX).toFixed(3)} data-abs-y=${+parseFloat(el.dataset.absY).toFixed(3)}${"absS" in el.dataset?` data-abs-s=${+parseFloat(el.dataset.absS).toFixed(3)}`:``}`;
+    const newHtmlText = htmlText.replace(/data-abs-.=["'0-9\.-]+/g, "").replace(/ +$/,'') + ` data-abs-x=${+parseFloat(el.dataset.absX).toFixed(3)} data-abs-y=${+parseFloat(el.dataset.absY).toFixed(3)}${"absS" in el.dataset?` data-abs-s=${+parseFloat(el.dataset.absS).toFixed(3)}`:``}${"absR" in el.dataset?` data-abs-r=${+parseFloat(el.dataset.absR).toFixed(3)}`:``}`;
     if (previewSlideIdx != currentSlideIdx)
         selectSlide(previewSlideIdx);
     editor.dispatch({
@@ -141,6 +170,15 @@ function dragSelected(x,y) {
     el.dataset.absY = newTop;
 }
 
+function playAnimation() {
+    slidesPreviewDivInner.classList.add("starting-style");
+    requestAnimationFrame(()=>slidesPreviewDivInner.classList.remove("starting-style"));
+}
+
+function remapInlineFiles(text) {
+    return text.split("FILE(").map((e,i) => (i?cachedFileData[e.split(")")[0]] + e.replace(/^.*?\)/,''):e)).join("");
+}
+
 function updatePreview() {
     previewNeedsUpdate = false;
     const state = previewSlideIdx == currentSlideIdx ? editor.state : (allSlides[previewSlideIdx].state || editor.state);
@@ -153,13 +191,23 @@ function updatePreview() {
     });
     stateText += state.doc.toString().slice(textPos);
     stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
-    stateText = stateText.split("FILE(").map((e,i) => (i?cachedFileData[e.split(")")[0]] + e.replace(/^.*?\)/,''):e)).join("");
-    slidesPreviewDivInner.innerHTML = allSlides[0].code + stateText;
+    stateText = remapInlineFiles(stateText);
+    [...slidesPreviewDivInner.classList].slice(1).forEach(e=>slidesPreviewDivInner.classList.remove(e));
+    slidesPreviewDivInner.classList.add(allSlides[previewSlideIdx].id);
+    if (currentSlideIdx == 0 || lastGlobalState !== allSlides[0].state) {
+        slidesPreviewDivGlobal.innerHTML = remapInlineFiles(allSlides[0].code);
+        lastGlobalState = allSlides[0].state;
+    }
+    slidesPreviewDivInner.innerHTML = stateText;
+    // may want to ratelimit this to make the editor more responsive i think
+    updatePreviewImage(true);
 }
 
 let editor;
 let cachedFileData = {};
+let cachedSlidePreviews = {};
 
+let lastGlobalState = -1;
 let lastEditorState = null;
 let lastEditorChange = 0;
 let previewNeedsUpdate = false;
@@ -176,38 +224,99 @@ function animate() {
         updatePreview();
     }
     //editor.state.doc.toString();
+    if (lastMouseMove + 1000 < Date.now() && isPresenting && !mouseHidden) {
+        document.body.style.cursor = "none";
+        mouseHidden = true;
+    }
     requestAnimationFrame(animate);
 }
 
 let currentSlideIdx = 1;
 let previewSlideIdx = 1;
+const SLIDE_TEMPLATE = {name:"",id:"TEMPLATE",code:"<h1>Title</h1>\n<p>text</p>\n<style>.body.TEMPLATE {\n  \n}</style>",state:null}
 let allSlides = [
-    {name:"global",code:"<style>.body {\n  \n}</style>",state:null},
-    {name:"Slide A",code:"<h1>Sample Text</h1>\n<style>.body {\n  \n}</style>",state:null},
-    {name:"Slide B",code:"<h1>Sample Text</h1>\n<style>.body {\n  \n}</style>",state:null},
+    {name:"global",id:"global",code:"<style>.body {\n  \n}</style>",state:null},
 ];
+
+let lastPreviewUpdate = 0;
+let lastPreviewRequest = 0;
+async function updatePreviewImage(throttle) {
+    if (throttle && lastPreviewUpdate + 500 > Date.now()) {
+        if (lastPreviewRequest)
+            clearInterval(lastPreviewRequest);
+        lastPreviewRequest = setTimeout(()=>{lastPreviewRequest=0;updatePreviewImage(true)}, 500);
+        return;
+    };
+    try {
+        lastPreviewUpdate = Date.now();
+        if (lastPreviewRequest)
+            clearInterval(lastPreviewRequest);
+        /* todo: downscale canvas before converting to png to save memory */
+        /* todo: save previews into project file */
+        cachedSlidePreviews[previewSlideIdx] = await domtoimage.toPng(slidesPreviewDivInner, {rWidth: 128, rHeight: 72});
+        document.querySelector(`slide-list-item[data-slide-index="${previewSlideIdx}"]`).style.backgroundImage = `url(${cachedSlidePreviews[previewSlideIdx]})`;
+        lastPreviewUpdate = Date.now();
+    } catch {}
+}
+
+/* warn: this will corrupt the project */
+async function loadAllPreviews() {
+    const oldSlideIdx = currentSlideIdx;
+    for (let i = 0; i < allSlides.length; i++) {
+        selectSlide(i);
+        await updatePreviewImage();
+    }
+    currentSlideIdx = oldSlideIdx;
+    selectSlide(currentSlideIdx);
+}
 
 function selectSlide(i) {
     allSlides[currentSlideIdx].state = editor.state;
     const newState = allSlides[i].state ?? bundledEditor.getState(allSlides[i].code);
     editor.setState(newState);
     lastEditorState = editor.state;
-    if (i != 0)
+    if (i != 0 || currentSlideIdx == 0)
         previewSlideIdx = i;
     currentSlideIdx = i;
     updateSlidesList();
     updatePreview();
+    playAnimation();
+    lastPreviewUpdate = 0;
+    //updatePreviewImage();
+}
+
+function prevSlide() {
+    selectSlide(Math.max(1, currentSlideIdx - 1));
+}
+
+function nextSlide() {
+    selectSlide(Math.min(allSlides.length-1, currentSlideIdx + 1));
+}
+
+function addSlide(doSelect) {
+    const newSlide = JSON.parse(JSON.stringify(SLIDE_TEMPLATE).replace(/TEMPLATE/g,Math.random().toString(36).split(".")[1]));
+    allSlides.push(newSlide);
+    if (doSelect)
+        selectSlide(allSlides.length - 1);
 }
 
 function updateSlidesList() {
     slidesAside.innerText = "";
     allSlides.forEach((e,i) => {
         const slideListItem = document.createElement("slide-list-item");
-        slideListItem.innerText = `#${i} - ${e.name}`;
+        slideListItem.dataset.slideIndex = i;
+        if (cachedSlidePreviews[i])
+            slideListItem.style.backgroundImage = `url(${cachedSlidePreviews[i]})`;
+        //slideListItem.innerText = `#${i} - ${e.name}`;
+        slideListItem.innerText = i?`#${i}`:'(global)';
         if (currentSlideIdx == i) slideListItem.classList.add("selected");
         slideListItem.onclick = () => selectSlide(i);
         slidesAside.appendChild(slideListItem);
     });
+    const slideListAdd = document.createElement("slide-list-add");
+    slideListAdd.innerText = "add slide";
+    slideListAdd.onclick = () => addSlide(true);
+    slidesAside.appendChild(slideListAdd);
 }
 
 async function saveProject() {
@@ -233,8 +342,13 @@ let projectDir;
 let filesDir;
 
 async function dumpSlideData() {
+    const data = {
+        version: 1.0,
+        allSlides: allSlides.map(e=>({...e,state:null})),
+        cachedSlidePreviews
+    }
     const writable = await projectFile.createWritable();
-    await writable.write(JSON.stringify(allSlides.map(e=>({...e,state:null}))));
+    await writable.write(JSON.stringify(data));
     await writable.close();
 }
 
@@ -296,11 +410,32 @@ async function openProjectZip() { /* todo: make this load stuff */
         });
     });
     const zip = new JSZip();
-    await zip.loadAsync(data);
-    zip.forEach((e) => console.log(e));
+    await zip.loadAsync(data, {createFolders: true});
+    if (!zip.file("project.json")) return console.error("Not a valid project file");
+    await projectDir.removeEntry("files", {recursive: true});
+    filesDir = await projectDir.getDirectoryHandle("files", { create: true });
+    const zipEntries = [];
+    zip.forEach(e=>zipEntries.push(zip.file(e)));
+    for (const e of zipEntries) {
+        let targetHandle;
+        if (e == null) continue;
+        if (e.name == "project.json") {
+            targetHandle = await projectDir.getFileHandle("project.json", { create: true });
+        } else if (e.name.startsWith("files/")) {
+            targetHandle = await filesDir.getFileHandle(e.name.split("/").at(-1), { create: true });
+        } else {
+            continue;
+        }
+        const writable = await targetHandle.createWritable();
+        await writable.write(await e.async("arraybuffer"));
+        await writable.close();
+    }
+    document.location.reload();
+    /*
     setTimeout(() => {
         document.body.removeChild(fileDom);
     }, 0);
+    */
 }
 
 async function createProjectZip() {
@@ -335,9 +470,12 @@ async function setupStorage(projectName) {
         projectFile = await projectDir.getFileHandle("project.json", { create: false });
     } catch {
         projectFile = await projectDir.getFileHandle("project.json", { create: true });
+        addSlide(false);
         await dumpSlideData();
     }
-    allSlides = JSON.parse(await readFile(projectFile, "Text"));
+    const projectData = JSON.parse(await readFile(projectFile, "Text"));
+    allSlides = projectData.allSlides;
+    cachedSlidePreviews = projectData.cachedSlidePreviews;
     for await (const value of filesDir.values()) {
         if (value.kind === 'file') {
             cachedFileData[value.name] = await readFile(value, "DataURL");
@@ -375,12 +513,27 @@ async function initData() {
 */
 
 async function fileAdded(file) {
-    if (!file.type.startsWith("image")) return console.error(`${file.type} not an image!`);
+    if (!file.type.startsWith("image/") && !file.type.startsWith("image/")) return console.error(`${file.type} not an image!`);
     const newFilename = await dropNewFile(file);
     cachedFileData[newFilename] = await readFile(file, "DataURL");
     editor.dispatch({
         changes: {from: editor.state.doc.toString().length, insert: `\n<img src="FILE(${newFilename})">`}
     });
+}
+
+function togglePresenting() {
+    isPresenting = !isPresenting;
+    isEditing = !isPresenting;
+    if (isPresenting) {
+        slidesPreviewDiv.style.scale = "";
+        slidesPreviewDiv.style.transform = "";
+        document.body.classList.add("presenting");
+        document.body.requestFullscreen();
+    } else {
+        document.body.classList.remove("presenting");
+        if (document.fullscreenElement)
+            document.exitFullscreen();
+    }
 }
 
 function setupKeybinds() {
@@ -394,6 +547,30 @@ function setupKeybinds() {
       e.preventDefault();
       openProjectZip();
     }
+    if (e.ctrlKey && e.key === 'F') {
+      e.preventDefault();
+      togglePresenting();
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        if (isPresenting) {
+            e.preventDefault();
+            prevSlide();
+        }
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === " ") {
+        if (isPresenting) {
+            e.preventDefault();
+            nextSlide();
+        }
+    }
+  });
+
+  window.addEventListener("contextmenu", (e) => {
+    if (isPresenting) {
+        e.preventDefault();
+        return false;
+    }
+    return true;
   });
 
   window.addEventListener("dragover", (e) => {
@@ -427,6 +604,7 @@ async function init() {
     updatePreview();
     updateProjectModified(false);
     setupKeybinds();
+    //await loadAllPreviews();
     requestAnimationFrame(animate);
 }
 

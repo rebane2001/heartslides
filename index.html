@@ -6,6 +6,7 @@
     <title>heartslides</title>
     <script type="text/javascript" src="bundling/editor.bundle.js"></script>
     <script type="text/javascript" src="js/jszip.min.js"></script>
+    <script type="text/javascript" src="js/dom-to-image.js"></script>
     <style>
 @property --cqw {
   syntax: '<length>';
@@ -27,7 +28,8 @@
             grid-template:
                 "top top top top" 32px
                 "slides code preview preview" 1fr
-                "bottom bottom bottom bottom" 32px / 136px 40% auto 100px;
+                "slides code preview preview" 1fr
+                "bottom bottom bottom bottom" 32px / 136px 50% auto 100px;
         }
         slides-aside {
             grid-area: slides;
@@ -46,10 +48,12 @@
             overflow: clip;
             & > div {
                 --cqw: 100cqw;
+                --cqh: 100cqh;
                 width: 0px;
                 height: 0px;
                 flex-grow: 0;
                 & > div {
+                    display: flex;
                     width: 768px;
                     height: 432px;
                     translate: -50% -50%;
@@ -57,26 +61,41 @@
                     outline: 2px solid orange;
                     position: absolute;
                     overflow: clip;
+                    & > .global {
+                        display: none;
+                    }
                     & > .body {
                         display: inline-block;
-                        width: 768px;
-                        height: 432px;
+                        flex-grow: 1;
+                        /* width: 768px;  */
+                        /* height: 432px; */
                     }
                 }
             }
         }
-        slide-list-item {
+        slide-list-item, slide-list-add {
+            background-size: cover;
             cursor: pointer;
             display: block;
             outline: 2px solid #888;
             width: 128px;
             height: 72px;
             margin-top: 8px;
+            color: #000;
+            text-shadow: 1px 1px #FFF;
+            &:first-child {
+                height: 1lh;
+            }
+            &:is(slide-list-add) {
+               text-align: center;
+               align-content: center;
+               height: 2lh
+            }
             &:hover {
-                background: #8884;
+                background-color: #8884;
             }
             &.selected {
-                background: #88F2;
+                background-color: #88F2;
                 outline-color: #88F;
             }
         }
@@ -87,8 +106,9 @@
             }
         }
         [data-code-selected] {
-            outline: 1px solid rebeccapurple;
-            background: rgb(from rebeccapurple r g b / 0.2);
+            /* rebeccapurple  */
+            outline: 1px solid #00ff76;
+            background: rgb(from #00ff76 r g b / 0.2);
         }
         [data-code-hover-highlight] {
             outline: 1px solid hotpink;
@@ -106,6 +126,30 @@
         [data-abs-s] {
             scale: attr(data-abs-s %);
         }
+        [data-abs-r] {
+            rotate: attr(data-abs-r deg);
+        }
+        .starting-style {
+            transition: none!important;
+        }
+
+        body.presenting {
+            .slide-editor {
+                display: grid;
+                grid-template:
+                    "preview" 1fr / 1fr;
+                &>:not(slides-preview) {
+                    display: none;
+                }
+                slides-preview {
+                    border: none;
+                    & > div > div {
+                        scale: min(calc((tan(atan2(var(--cqw), 1px))) / 768), calc((tan(atan2(var(--cqh), 1px))) / 432));
+                        outline: none;
+                    }
+                }
+            }
+        }
     </style>
 </head>
 <body>
@@ -118,6 +162,7 @@
     <slides-preview>
         <div>
             <div>
+                <span class="global"></span>
                 <div class="body">
                 </div>
             </div>

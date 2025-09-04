@@ -1,14 +1,25 @@
+## todo
+- pruning files
+- ctrl+shift+z to undo
+- file browser
+- transitons/animations
+  - order / on click
+- keyboard navigate between slides
+- presentation mode
+- presenter view
+- remove/move slides around
+- group/move multiple elements at once
+
+## n/a / notplanned
 - layouts
   - big title
   - title + list
   - title
 - filesystem emulation
-- arbitrary object placement
-- arbitrary image placement
-- transitons/animations
-  - order / on click
-- keyboard navigate between slides
-- presenter view
 - colored/formatted/highlighted text
 
-- pruning files
+## done
+- arbitrary object placement/scale/rot
+- arbitrary image placement/scale/rot
+
+
