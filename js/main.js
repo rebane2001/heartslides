@@ -199,7 +199,6 @@ function updatePreview() {
         lastGlobalState = allSlides[0].state;
     }
     slidesPreviewDivInner.innerHTML = stateText;
-    // may want to ratelimit this to make the editor more responsive i think
     updatePreviewImage(true);
 }
 
@@ -251,8 +250,6 @@ async function updatePreviewImage(throttle) {
         lastPreviewUpdate = Date.now();
         if (lastPreviewRequest)
             clearInterval(lastPreviewRequest);
-        /* todo: downscale canvas before converting to png to save memory */
-        /* todo: save previews into project file */
         cachedSlidePreviews[previewSlideIdx] = await domtoimage.toPng(slidesPreviewDivInner, {rWidth: 128, rHeight: 72});
         document.querySelector(`slide-list-item[data-slide-index="${previewSlideIdx}"]`).style.backgroundImage = `url(${cachedSlidePreviews[previewSlideIdx]})`;
         lastPreviewUpdate = Date.now();
@@ -294,10 +291,45 @@ function nextSlide() {
 }
 
 function addSlide(doSelect) {
-    const newSlide = JSON.parse(JSON.stringify(SLIDE_TEMPLATE).replace(/TEMPLATE/g,Math.random().toString(36).split(".")[1]));
+    const newSlide = JSON.parse(JSON.stringify(SLIDE_TEMPLATE).replace(/TEMPLATE/g,"s"+Math.random().toString(36).split(".")[1]));
     allSlides.push(newSlide);
     if (doSelect)
         selectSlide(allSlides.length - 1);
+}
+
+function removeSlide(i) {
+    if (!confirm("Delete the slide?")) return;
+    if (currentSlideIdx == i) {
+        selectSlide(i-1);
+        previewSlideIdx = currentSlideIdx;
+    }
+    allSlides.splice(i, 1);
+    const tempPreviews = Object.values(cachedSlidePreviews);
+    tempPreviews.splice(i, 1);
+    cachedSlidePreviews = Object.fromEntries(Object.entries(tempPreviews));
+    updateSlidesList();
+}
+
+function moveSlide(from, to) {
+    if (to <= 0 || to >= allSlides.length) return;
+    if (from <= 0 || from >= allSlides.length) return;
+    if (currentSlideIdx == to || currentSlideIdx == from)
+        allSlides[currentSlideIdx].state = editor.state;
+    const fromSlide = allSlides[from];
+    const toSlide = allSlides[to];
+    allSlides[from] = toSlide;
+    allSlides[to] = fromSlide;
+    const fromPreview = cachedSlidePreviews[from];
+    cachedSlidePreviews[from] = cachedSlidePreviews[to];
+    cachedSlidePreviews[to] = fromPreview;
+    if (previewSlideIdx == from || currentSlideIdx == from) {
+        currentSlideIdx = to;
+        previewSlideIdx = to;
+    } else if (previewSlideIdx == to || currentSlideIdx == to) {
+        currentSlideIdx = from;
+        previewSlideIdx = from;
+    }
+    updateSlidesList();
 }
 
 function updateSlidesList() {
@@ -311,6 +343,20 @@ function updateSlidesList() {
         slideListItem.innerText = i?`#${i}`:'(global)';
         if (currentSlideIdx == i) slideListItem.classList.add("selected");
         slideListItem.onclick = () => selectSlide(i);
+        if (i) {
+            const slideListUp = document.createElement("slide-list-action");
+            const slideListDown = document.createElement("slide-list-action");
+            const slideListRemove = document.createElement("slide-list-action");
+            slideListUp.innerText = "^";
+            slideListDown.innerText = "v";
+            slideListRemove.innerText = "x";
+            slideListUp.onclick = (e) => {e.stopPropagation();moveSlide(i,i-1)};
+            slideListDown.onclick = (e) => {e.stopPropagation();moveSlide(i,i+1)};
+            slideListRemove.onclick = (e) => {e.stopPropagation();removeSlide(i)};
+            slideListItem.appendChild(slideListUp);
+            slideListItem.appendChild(slideListDown);
+            slideListItem.appendChild(slideListRemove);
+        }
         slidesAside.appendChild(slideListItem);
     });
     const slideListAdd = document.createElement("slide-list-add");
@@ -395,7 +441,7 @@ function download(blob, filename) {
     }, 0); 
 }
 
-async function openProjectZip() { /* todo: make this load stuff */
+async function openProjectZip() {
     const fileDom = document.createElement("input");
     fileDom.type = "file";
     document.body.appendChild(fileDom);
@@ -493,25 +539,6 @@ async function dropNewFile(file) {
     return filename;
 }
 
-/*
-let slideDb;
-
-async function initData() {
-    const request = await new Promise(function(resolve, reject) {
-        const r = window.indexedDB.open("HeartSlides", 1);
-        r.onsuccess = (e) => {
-            slideDb = e.target.result;
-            resolve(slideDb);
-        }
-        r.onerror = (e) => {
-            alert("indexedDB error");
-            console.error(e);
-            reject();
-        }
-    });
-}
-*/
-
 async function fileAdded(file) {
     if (!file.type.startsWith("image/") && !file.type.startsWith("image/")) return console.error(`${file.type} not an image!`);
     const newFilename = await dropNewFile(file);
@@ -530,6 +557,8 @@ function togglePresenting() {
         document.body.classList.add("presenting");
         document.body.requestFullscreen();
     } else {
+        document.body.style.cursor = "";
+        mouseHidden = false;
         document.body.classList.remove("presenting");
         if (document.fullscreenElement)
             document.exitFullscreen();
@@ -572,6 +601,10 @@ function setupKeybinds() {
     }
     return true;
   });
+  window.addEventListener("fullscreenchange", (event) => {
+    if (isPresenting && !document.fullscreenElement)
+        togglePresenting();
+  })
 
   window.addEventListener("dragover", (e) => {
     e.preventDefault();

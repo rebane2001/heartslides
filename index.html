@@ -76,8 +76,9 @@
         slide-list-item, slide-list-add {
             background-size: cover;
             cursor: pointer;
-            display: block;
+            display: flex;
             outline: 2px solid #888;
+            gap: 2px;
             width: 128px;
             height: 72px;
             margin-top: 8px;
@@ -97,6 +98,24 @@
             &.selected {
                 background-color: #88F2;
                 outline-color: #88F;
+            }
+            &:not(:hover) {
+                slide-list-action { display:none; }
+            }
+            slide-list-action {
+                background: #FFF;
+                &:hover {
+                    background: #EEE;
+                }
+                &:first-child {
+                    margin-left: auto;
+                }
+                align-self: end;
+                display: block;
+                width: 16px;
+                height: 16px;
+                border: 1px solid;
+                text-align: center;
             }
         }
         #editorDiv {
