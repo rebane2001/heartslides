@@ -7,6 +7,10 @@
     <script type="text/javascript" src="bundling/editor.bundle.js"></script>
     <script type="text/javascript" src="js/jszip.min.js"></script>
     <script type="text/javascript" src="js/dom-to-image.js"></script>
+    <script type="text/javascript" src="js/highlight/highlight.min.js"></script>
+    <script type="text/javascript" src="js/highlight/javascript.min.js"></script>
+    <script type="text/javascript" src="js/highlight/css.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="js/highlight/night-owl.min.css">
     <style>
 @property --cqw {
   syntax: '<length>';
@@ -29,13 +33,17 @@
                 "top top top top" 32px
                 "slides code preview preview" 1fr
                 "slides code preview preview" 1fr
-                "bottom bottom bottom bottom" 32px / 136px 50% auto 100px;
+                "bottom bottom bottom bottom" 32px / 148px 50% auto 100px;
         }
         slides-aside {
             grid-area: slides;
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-y: auto;
+            overflow-x: clip;
+            scrollbar-width: thin;
+            padding-bottom: 10px;
         }
         slides-preview {
             border: 1px solid #EEE;
@@ -74,6 +82,7 @@
             }
         }
         slide-list-item, slide-list-add {
+            flex-shrink: 0;
             background-size: cover;
             cursor: pointer;
             display: flex;
@@ -168,6 +177,12 @@
                     }
                 }
             }
+        }
+
+        .highlighted-pre {
+            overflow: visible;
+            font-size: 0.8em;
+            white-space: pre-wrap;
         }
     </style>
 </head>

@@ -43,8 +43,8 @@ let slidesPreviewX = 0;
 let slidesPreviewY = 0;
 slidesPreview.addEventListener("mousedown", (e) => {
     if (isPresenting && (e.which == 1 || e.which == 3)) {
-        if (e.which == 1) nextSlide();
-        if (e.which == 3) prevSlide();
+        if (e.which == 1) nextSlideSoft();
+        if (e.which == 3) prevSlideSoft();
         e.preventDefault();
     }
     if (e.which == 1) {
@@ -91,7 +91,14 @@ slidesPreview.addEventListener("mouseup", (e) => {
 
 function findElByIdx(elIdx) {
     const state = previewSlideIdx == currentSlideIdx ? editor.state : (allSlides[previewSlideIdx].state || editor.state);
-    const stateText = state.doc.toString().replace(/(<[a-z][^<>]*?)>/g, "$1DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (i==elIdx?e+"DATACODESPLIT":e)).join("");
+    const codeReplacements = {};
+    let stateText = state.doc.toString().replace(/```([^\s]+)(.*)```/gs, (match) => {
+        const replacementString = "CODE-REPLACEMENT-" + Math.random().toString(36);
+        codeReplacements[replacementString] = match;
+        return replacementString;
+    });
+    stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (i==elIdx?e+"DATACODESPLIT":e)).join("");
+    Object.entries(codeReplacements).forEach(([k,v]) => stateText = stateText.replace(k,v));
     const el = slidesPreviewDivInner.querySelector(`[data-code-index="${elIdx}"]`);
     return {state, stateText, el};
 }
@@ -175,6 +182,23 @@ function playAnimation() {
     requestAnimationFrame(()=>slidesPreviewDivInner.classList.remove("starting-style"));
 }
 
+function updateAnimations() {
+    if (currentAnimation == 0) return;
+    const maxAnimation = currentAnimation;
+    currentAnimation = 0;
+    for (let i = 0; i<maxAnimation; i++) {
+        playNextAnimation();
+    }
+}
+
+function playNextAnimtionLoop() {
+    //if (!playNextAnimation()) while (currentAnimation) playPrevAnimation();
+    if (!playNextAnimation()) {
+        currentAnimation = 0;
+        updatePreview();
+    }
+}
+
 function remapInlineFiles(text) {
     return text.split("FILE(").map((e,i) => (i?cachedFileData[e.split(")")[0]] + e.replace(/^.*?\)/,''):e)).join("");
 }
@@ -190,8 +214,24 @@ function updatePreview() {
         textPos = to;
     });
     stateText += state.doc.toString().slice(textPos);
+    const codeReplacements = {};
+    stateText = stateText.replace(/```([^\s]+)(.*)```/gs, (match, lang, code) => {
+        const language = lang.split(";")[0];
+        const classes = lang.split(";").slice(1).join(" ");
+        let highlighted;
+        try {
+            highlighted = hljs.highlight(code.trim(), {language}).value;
+        } catch {
+            highlighted = hljs.highlight(code.trim(), {language:"css"}).value;
+        }
+        
+        const replacementString = "CODE-REPLACEMENT-" + Math.random().toString(36);
+        codeReplacements[replacementString] = `<pre class="highlighted-pre ${classes}"><code class="hljs">${highlighted}</code></pre>`;
+        return replacementString;
+    });
     stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
     stateText = remapInlineFiles(stateText);
+    Object.entries(codeReplacements).forEach(([k,v]) => stateText = stateText.replace(k,v));
     [...slidesPreviewDivInner.classList].slice(1).forEach(e=>slidesPreviewDivInner.classList.remove(e));
     slidesPreviewDivInner.classList.add(allSlides[previewSlideIdx].id);
     if (currentSlideIdx == 0 || lastGlobalState !== allSlides[0].state) {
@@ -199,6 +239,7 @@ function updatePreview() {
         lastGlobalState = allSlides[0].state;
     }
     slidesPreviewDivInner.innerHTML = stateText;
+    updateAnimations();
     updatePreviewImage(true);
 }
 
@@ -268,6 +309,10 @@ async function loadAllPreviews() {
 }
 
 function selectSlide(i) {
+    if (currentSlideIdx == i && previewSlideIdx == i) {
+        playNextAnimtionLoop();
+        return;
+    }
     allSlides[currentSlideIdx].state = editor.state;
     const newState = allSlides[i].state ?? bundledEditor.getState(allSlides[i].code);
     editor.setState(newState);
@@ -282,12 +327,48 @@ function selectSlide(i) {
     //updatePreviewImage();
 }
 
+let currentAnimation = 0;
+
+function playPrevAnimation() {
+    if (currentAnimation == 0) return false;
+    const currentAnimationClass = `anim-${currentAnimation}`;
+    document.querySelectorAll(`.body.${allSlides[previewSlideIdx].id}, .body.${allSlides[previewSlideIdx].id} *`).forEach(e => {
+        e.classList.remove(currentAnimationClass);
+    });
+    currentAnimation--;
+    return true;
+}
+
+function playNextAnimation() {
+    currentAnimation++;
+    const currentAnimationClass = `anim-${currentAnimation}`;
+    if (!allSlides[previewSlideIdx].code.includes(currentAnimationClass)) return false;
+    document.querySelectorAll(`.body.${allSlides[previewSlideIdx].id}, .body.${allSlides[previewSlideIdx].id} *`).forEach(e => {
+        e.classList.add(currentAnimationClass);
+    });
+    return true;
+}
+
 function prevSlide() {
+    currentAnimation = 0;
     selectSlide(Math.max(1, currentSlideIdx - 1));
 }
 
 function nextSlide() {
+    currentAnimation = 0;
     selectSlide(Math.min(allSlides.length-1, currentSlideIdx + 1));
+}
+
+function prevSlideSoft() {
+    if (!playPrevAnimation()) {
+        prevSlide();
+        //while (allSlides[previewSlideIdx].code.includes(`anim-${currentAnimation+1}`)) currentAnimation++;
+    }
+}
+
+function nextSlideSoft() {
+    if (!playNextAnimation())
+        nextSlide();
 }
 
 function addSlide(doSelect) {
@@ -340,7 +421,9 @@ function updateSlidesList() {
         if (cachedSlidePreviews[i])
             slideListItem.style.backgroundImage = `url(${cachedSlidePreviews[i]})`;
         //slideListItem.innerText = `#${i} - ${e.name}`;
-        slideListItem.innerText = i?`#${i}`:'(global)';
+        const titleText = /<h1>(.+?)<\/h1>/.exec(e.code)?.[1];
+        const titleTextDisplay = titleText ? " " + titleText.replace(/(<br>|\n)/g," ").replace(/<.*?>/g,"").slice(0,12) : "";
+        slideListItem.innerText = i?`#${i}${titleTextDisplay}`:'(global)';
         if (currentSlideIdx == i) slideListItem.classList.add("selected");
         slideListItem.onclick = () => selectSlide(i);
         if (i) {
@@ -583,13 +666,13 @@ function setupKeybinds() {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         if (isPresenting) {
             e.preventDefault();
-            prevSlide();
+            prevSlideSoft();
         }
     }
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === " ") {
         if (isPresenting) {
             e.preventDefault();
-            nextSlide();
+            nextSlideSoft();
         }
     }
   });
