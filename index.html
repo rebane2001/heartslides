@@ -10,6 +10,11 @@
     <script type="text/javascript" src="js/highlight/highlight.min.js"></script>
     <script type="text/javascript" src="js/highlight/javascript.min.js"></script>
     <script type="text/javascript" src="js/highlight/css.min.js"></script>
+    <script type="text/javascript" src="js/highlight/bash.min.js"></script>
+    <script type="text/javascript" src="js/highlight/shell.min.js"></script>
+    <script type="text/javascript" src="js/highlight/python.min.js"></script>
+    <script type="text/javascript" src="js/highlight/typescript.min.js"></script>
+    <script type="text/javascript" src="js/highlight/diff.min.js"></script>
     <link rel="stylesheet" type="text/css" href="js/highlight/night-owl.min.css">
     <style>
 @property --cqw {
@@ -82,6 +87,7 @@
             }
         }
         slide-list-item, slide-list-add {
+            position: relative;
             flex-shrink: 0;
             background-size: cover;
             cursor: pointer;
@@ -125,6 +131,19 @@
                 height: 16px;
                 border: 1px solid;
                 text-align: center;
+            }
+        }
+        slide-list-item.dragTarget {
+            &::after {
+                content: "";
+                position: absolute;
+                top: -5px;
+                left:0;
+                right:0;
+                height: 2px;
+                background: #44F;
+                box-shadow: 0 0 4px 2px #44F8;
+                z-index: 1;
             }
         }
         #editorDiv {

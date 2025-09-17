@@ -92,7 +92,7 @@ slidesPreview.addEventListener("mouseup", (e) => {
 function findElByIdx(elIdx) {
     const state = previewSlideIdx == currentSlideIdx ? editor.state : (allSlides[previewSlideIdx].state || editor.state);
     const codeReplacements = {};
-    let stateText = state.doc.toString().replace(/```([^\s]+)(.*)```/gs, (match) => {
+    let stateText = state.doc.toString().replace(/```([^\s]+)(.*?)```/gs, (match) => {
         const replacementString = "CODE-REPLACEMENT-" + Math.random().toString(36);
         codeReplacements[replacementString] = match;
         return replacementString;
@@ -179,7 +179,12 @@ function dragSelected(x,y) {
 
 function playAnimation() {
     slidesPreviewDivInner.classList.add("starting-style");
-    requestAnimationFrame(()=>slidesPreviewDivInner.classList.remove("starting-style"));
+    // requestAnimationFrame(()=>slidesPreviewDivInner.classList.remove("starting-style"));
+    requestAnimationFrame(()=>
+        requestAnimationFrame(()=>
+            slidesPreviewDivInner.classList.remove("starting-style")
+        )
+    );
 }
 
 function updateAnimations() {
@@ -215,7 +220,7 @@ function updatePreview() {
     });
     stateText += state.doc.toString().slice(textPos);
     const codeReplacements = {};
-    stateText = stateText.replace(/```([^\s]+)(.*)```/gs, (match, lang, code) => {
+    stateText = stateText.replace(/```([^\s]+)(.*?)```/gs, (match, lang, code) => {
         const language = lang.split(";")[0];
         const classes = lang.split(";").slice(1).join(" ");
         let highlighted;
@@ -312,6 +317,8 @@ function selectSlide(i) {
     if (currentSlideIdx == i && previewSlideIdx == i) {
         playNextAnimtionLoop();
         return;
+    } else {
+        currentAnimation = 0;
     }
     allSlides[currentSlideIdx].state = editor.state;
     const newState = allSlides[i].state ?? bundledEditor.getState(allSlides[i].code);
@@ -391,9 +398,10 @@ function removeSlide(i) {
     updateSlidesList();
 }
 
-function moveSlide(from, to) {
+function swapSlide(from, to) {
     if (to <= 0 || to >= allSlides.length) return;
     if (from <= 0 || from >= allSlides.length) return;
+    if (from == to) return;
     if (currentSlideIdx == to || currentSlideIdx == from)
         allSlides[currentSlideIdx].state = editor.state;
     const fromSlide = allSlides[from];
@@ -413,10 +421,58 @@ function moveSlide(from, to) {
     updateSlidesList();
 }
 
+function moveSlide(from, to) {
+    if (to <= 0 || to >= allSlides.length) return;
+    if (from <= 0 || from >= allSlides.length) return;
+    if (from == to) return;
+    const movingSlide = allSlides.splice(from,1);
+    allSlides.splice(to, 0, ...movingSlide);
+    let previewEntries = Object.entries(cachedSlidePreviews);
+    const movingPreview = cachedSlidePreviews?.[from];
+    previewEntries = previewEntries.filter(([k,v])=>k!=from);
+    if (currentSlideIdx == from) currentSlideIdx = to;
+    //else if (currentSlideIdx == to) currentSlideIdx = from;
+    else if (from > to) { if (currentSlideIdx >= to && currentSlideIdx < from) currentSlideIdx++; }
+    else { if (currentSlideIdx > from && currentSlideIdx <= to) currentSlideIdx--; }
+    if (previewSlideIdx == from) previewSlideIdx = to;
+    //else if (previewSlideIdx == to) previewSlideIdx = from;
+    else if (from > to) { if (previewSlideIdx >= to && previewSlideIdx < from) previewSlideIdx++; }
+    else { if (previewSlideIdx > from && previewSlideIdx <= to) previewSlideIdx--; }
+    if (from > to) previewEntries = previewEntries.map(([k,v]) => [k>=to&&k<from?+k+1:k,v]);
+    else previewEntries = previewEntries.map(([k,v]) => [k>from&&k<=to?+k-1:k,v]);    
+    cachedSlidePreviews = Object.fromEntries(previewEntries);
+    if (movingPreview) cachedSlidePreviews[to] = movingPreview;
+    updateSlidesList();
+}
+
 function updateSlidesList() {
     slidesAside.innerText = "";
     allSlides.forEach((e,i) => {
         const slideListItem = document.createElement("slide-list-item");
+        slideListItem.draggable = true;
+        slideListItem.addEventListener("dragstart", (event) =>
+            event.dataTransfer.setData("text/plain", `slide-item/${i}`),
+        );
+        slideListItem.addEventListener("dragenter", (ev) => {
+            slideListItem.classList.add("dragTarget");
+            ev.preventDefault();
+        });
+        slideListItem.addEventListener("dragleave", (ev) => {
+            slideListItem.classList.remove("dragTarget");
+            ev.preventDefault();
+        });
+        slideListItem.addEventListener("dragend", (ev) => {
+            slideListItem.classList.remove("dragTarget");
+            ev.preventDefault();
+        });
+        slideListItem.addEventListener("drop", (ev) => {
+            slideListItem.classList.remove("dragTarget");
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            if (!data.startsWith("slide-item/")) return;
+            const sourceIdx = parseInt(data.split("/")[1]);
+            moveSlide(sourceIdx, i>sourceIdx?i-1:i);
+        });
         slideListItem.dataset.slideIndex = i;
         if (cachedSlidePreviews[i])
             slideListItem.style.backgroundImage = `url(${cachedSlidePreviews[i]})`;
@@ -433,8 +489,8 @@ function updateSlidesList() {
             slideListUp.innerText = "^";
             slideListDown.innerText = "v";
             slideListRemove.innerText = "x";
-            slideListUp.onclick = (e) => {e.stopPropagation();moveSlide(i,i-1)};
-            slideListDown.onclick = (e) => {e.stopPropagation();moveSlide(i,i+1)};
+            slideListUp.onclick = (e) => {e.stopPropagation();swapSlide(i,i-1)};
+            slideListDown.onclick = (e) => {e.stopPropagation();swapSlide(i,i+1)};
             slideListRemove.onclick = (e) => {e.stopPropagation();removeSlide(i)};
             slideListItem.appendChild(slideListUp);
             slideListItem.appendChild(slideListDown);
