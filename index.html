@@ -164,20 +164,54 @@
         /* note: this currently needs polyfill for firefox */
         [data-abs-x] {
             position: absolute;
+            left: var(--data-abs-x);
             left: attr(data-abs-x px);
         }
         [data-abs-y] {
             position: absolute;
+            top: var(--data-abs-y);
             top: attr(data-abs-y px);
         }
         [data-abs-s] {
+            scale: var(--data-abs-s);
             scale: attr(data-abs-s %);
         }
         [data-abs-r] {
+            rotate: var(--data-abs-r);
             rotate: attr(data-abs-r deg);
         }
         .starting-style {
             transition: none!important;
+        }
+
+
+        lite-bar {
+            display: none;
+            grid-area: litebar;
+            flex-direction: column;
+            box-sizing: border-box;
+            gap: 16px;
+            padding: 16px;
+            button {
+                font-size: 200%;
+                padding: 8px 16px;
+                cursor: pointer;
+            }
+        }
+        body:has(#lite-mode:checked):not(.presenting) {
+            .slide-editor {
+                grid-template:
+                    "top top top top" 32px
+                    "slides preview preview litebar" 1fr
+                    "slides preview preview litebar" 1fr
+                    "bottom bottom bottom bottom" 32px / 148px 50% auto 400px;
+            }
+            #editorDiv {
+                display: none;
+            }
+            lite-bar {
+                display: flex;
+            }
         }
 
         body.presenting {
@@ -203,11 +237,52 @@
             font-size: 0.8em;
             white-space: pre-wrap;
         }
+
+        slides-top {
+            display: flex;
+            color: white;
+            align-items: center;
+            gap: 8px;
+            &>span:first-child {
+                margin-left: 8px;
+            }
+            button {
+                background: none;
+                color: #FFF;
+                border: 1px solid #FFF;
+                cursor:pointer;
+                &:hover {
+                    color: green;
+                    background: #FFF;
+                }
+            }
+        }
+
+        slides-bottom {
+            display: flex;
+            color: green;
+            align-items: center;
+            gap: 8px;
+            &>span:first-child {
+                margin-left: 8px;
+            }
+        }
     </style>
 </head>
 <body>
 <main class="slide-editor">
-    <div style="background: green;grid-area: top">top</div>
+    <p style="position:absolute;top:50%;left:50%;translate:-50% -50%;font-size:128px;margin: 0;z-index:10;" id="slides-loading">Loading...</p>
+    <slides-top style="background: green;grid-area: top">
+        <span>heartslides</span>
+        <button onclick=saveProject()>Save Project</button>
+        <button onclick=openProjectZip()>Open Project Zip</button>
+        <button onclick=downloadProjectZip()>Save Project Zip</button>
+        <button onclick=exportProject()>Export Project HTML</button>
+        <button onclick=resetZoom()>Reset Zoom</button>
+        <button onclick=togglePresenting()>Present</button>
+        <button onclick=openPresenterView()>Presenter View</button>
+        <label><input type="checkbox" name="lite-mode" id="lite-mode">lite</label>
+    </slides-top>
     <slides-aside>
         
     </slides-aside>
@@ -221,7 +296,13 @@
             </div>
         </div>
     </slides-preview>
-    <div style="background: pink;grid-area: bottom">bottom</div>
+    <lite-bar>
+        <p style="font-size:64px;margin:0;text-align:center;">Actions</p>
+        <button onclick=togglePresenting()>Present</button>
+        <button onclick=togglePresenting(true)>Present (no fullscreen)</button>
+        <button onclick=openPresenterView()>Presenter View</button>
+    </lite-bar>
+    <slides-bottom style="background: pink;grid-area: bottom"><span>lyra rebane</span></slides-bottom>
 </main>
 <script type="text/javascript" src="js/main.js"></script>
 </body>

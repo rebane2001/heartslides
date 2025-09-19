@@ -4,7 +4,13 @@ const SLIDE_WIDTH = 768;
 const SLIDE_HEIGHT = 432;
 let isPresenting = false;
 let isEditing = true;
+const isExport = false;
+const exportData = '';
 
+const isFirefox = /firefox/i.test(navigator.userAgent);
+
+const loadingText = document.querySelector("#slides-loading");
+const liteModeCheck = document.querySelector("#lite-mode");
 const slidesAside = document.querySelector("slides-aside");
 const slidesPreview = document.querySelector("slides-preview");
 const slidesPreviewDiv = document.querySelector("slides-preview > div > div");
@@ -59,8 +65,14 @@ slidesPreview.addEventListener("mousedown", (e) => {
 });
 slidesPreview.addEventListener("mousemove", (e) => {
     highlightHoverEl(e?.target);
-    if (e.which == 2) dragSlidesPreview(e.clientX, e.clientY);
-    if (e.which == 1) dragSelected(e.clientX, e.clientY);
+    let which = e.which;
+    if (isFirefox) {
+        which = 0;
+        if (e.buttons == 1) which = 1;
+        if (e.buttons == 4) which = 2;
+    }
+    if (which == 2) dragSlidesPreview(e.clientX, e.clientY);
+    if (which == 1) dragSelected(e.clientX, e.clientY);
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
     lastMiddleMouseDown = 0;
@@ -79,15 +91,19 @@ slidesPreview.addEventListener("mouseup", (e) => {
     if (e.which == 2) {
         dragSlidesPreview(e.clientX, e.clientY);
         if (lastMiddleMouseDown + 200 > Date.now()) {
-            slidesPreviewX = 0;
-            slidesPreviewY = 0;
-            slidesPreviewDiv.style.scale = "";
-            slidesPreviewDiv.style.transform = "";
+            resetZoom();
         }
     }
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
 });
+
+function resetZoom() {
+    slidesPreviewX = 0;
+    slidesPreviewY = 0;
+    slidesPreviewDiv.style.scale = "";
+    slidesPreviewDiv.style.transform = "";
+}
 
 function findElByIdx(elIdx) {
     const state = previewSlideIdx == currentSlideIdx ? editor.state : (allSlides[previewSlideIdx].state || editor.state);
@@ -133,6 +149,8 @@ function startDraggingSelected(target) {
     el.style.margin = oldMargin;
     el.style.scale = oldScale;
     el.style.rotate = oldRotate;
+    if (isFirefox)
+        firefoxUnitsFix(slidesPreviewDivInner);
 }
 
 function scrollSelected(deltaY, altKey, shiftKey) {
@@ -149,6 +167,8 @@ function scrollSelected(deltaY, altKey, shiftKey) {
         const newScale = oldScale - (oldScale/1000)*deltaY*zoomSpeed;
         el.dataset.absS = newScale;
     }
+    if (isFirefox)
+        firefoxUnitsFix(slidesPreviewDivInner);
 }
 
 function applyDrag() {
@@ -175,6 +195,8 @@ function dragSelected(x,y) {
     const newTop = oldTop - (lastMouseY - y)/scale;
     el.dataset.absX = newLeft;
     el.dataset.absY = newTop;
+    if (isFirefox)
+        firefoxUnitsFix(slidesPreviewDivInner);
 }
 
 function playAnimation() {
@@ -208,6 +230,36 @@ function remapInlineFiles(text) {
     return text.split("FILE(").map((e,i) => (i?cachedFileData[e.split(")")[0]] + e.replace(/^.*?\)/,''):e)).join("");
 }
 
+function firefoxUnitsFix(div) {
+    // unit-ed data attr fallback for firefox
+    [["x","px"],["y","px"],["s","%"],["r","deg"]].forEach(([v,unit]) => {
+        const unitVarRegex = new RegExp(`--data-abs-${v}:\\s*["'0-9\\.-]+${unit};`, "g");
+        div.querySelectorAll(`[data-abs-${v}]`).forEach(e => {
+            const oldStyle = (e.getAttribute("style")??"").replace(unitVarRegex,"");
+            e.setAttribute("style",`--data-abs-${v}:${e.dataset[`abs${v.toUpperCase()}`]}${unit};` + oldStyle);
+        });
+    });
+}
+
+// may be unnecessary
+function preloadCode() {
+    allSlides.forEach((slide) => {
+        slide.code.replace(/```([^\s]+)(.*?)```/gs, (match, lang, code) => {
+            const language = lang.split(";")[0];
+            const classes = lang.split(";").slice(1).join(" ");
+            let highlighted = cachedCodeblocks[code.trim() + language];
+            if (!highlighted) {
+                try {
+                    highlighted = hljs.highlight(code.trim(), {language}).value;
+                } catch {
+                    highlighted = hljs.highlight(code.trim(), {language:"css"}).value;
+                }
+                cachedCodeblocks[code.trim() + language] = highlighted;
+            }
+        });
+    })
+}
+
 function updatePreview() {
     previewNeedsUpdate = false;
     const state = previewSlideIdx == currentSlideIdx ? editor.state : (allSlides[previewSlideIdx].state || editor.state);
@@ -223,11 +275,14 @@ function updatePreview() {
     stateText = stateText.replace(/```([^\s]+)(.*?)```/gs, (match, lang, code) => {
         const language = lang.split(";")[0];
         const classes = lang.split(";").slice(1).join(" ");
-        let highlighted;
-        try {
-            highlighted = hljs.highlight(code.trim(), {language}).value;
-        } catch {
-            highlighted = hljs.highlight(code.trim(), {language:"css"}).value;
+        let highlighted;// = cachedCodeblocks[code.trim() + language];
+        if (!highlighted) {
+            try {
+                highlighted = hljs.highlight(code.trim(), {language}).value;
+            } catch {
+                highlighted = hljs.highlight(code.trim(), {language:"css"}).value;
+            }
+            //cachedCodeblocks[code.trim() + language] = highlighted;
         }
         
         const replacementString = "CODE-REPLACEMENT-" + Math.random().toString(36);
@@ -244,13 +299,19 @@ function updatePreview() {
         lastGlobalState = allSlides[0].state;
     }
     slidesPreviewDivInner.innerHTML = stateText;
+    if (isFirefox) {
+        firefoxUnitsFix(slidesPreviewDivInner);
+    }
     updateAnimations();
-    updatePreviewImage(true);
+    if (isEditing && !isPresenting)
+        updatePreviewImage(true);
 }
 
 let editor;
 let cachedFileData = {};
 let cachedSlidePreviews = {};
+let renderedSlides = {};
+let cachedCodeblocks = {};
 
 let lastGlobalState = -1;
 let lastEditorState = null;
@@ -265,7 +326,7 @@ function animate() {
         lastEditorState = editor.state;
         updateProjectModified(true);
     }
-    if (previewNeedsUpdate && lastEditorChange < Date.now() - PREVIEW_DEBOUNCE_MS) {
+    if (previewNeedsUpdate && lastEditorChange < Date.now() - PREVIEW_DEBOUNCE_MS && !isPresenting) {
         updatePreview();
     }
     //editor.state.doc.toString();
@@ -331,6 +392,7 @@ function selectSlide(i) {
     updatePreview();
     playAnimation();
     lastPreviewUpdate = 0;
+    updateNextSlidePreview();
     //updatePreviewImage();
 }
 
@@ -371,11 +433,13 @@ function prevSlideSoft() {
         prevSlide();
         //while (allSlides[previewSlideIdx].code.includes(`anim-${currentAnimation+1}`)) currentAnimation++;
     }
+    updateNextSlidePreview();
 }
 
 function nextSlideSoft() {
     if (!playNextAnimation())
         nextSlide();
+    updateNextSlidePreview();
 }
 
 function addSlide(doSelect) {
@@ -492,8 +556,8 @@ function updateSlidesList() {
             slideListUp.onclick = (e) => {e.stopPropagation();swapSlide(i,i-1)};
             slideListDown.onclick = (e) => {e.stopPropagation();swapSlide(i,i+1)};
             slideListRemove.onclick = (e) => {e.stopPropagation();removeSlide(i)};
-            slideListItem.appendChild(slideListUp);
-            slideListItem.appendChild(slideListDown);
+            //slideListItem.appendChild(slideListUp);
+            //slideListItem.appendChild(slideListDown);
             slideListItem.appendChild(slideListRemove);
         }
         slidesAside.appendChild(slideListItem);
@@ -507,6 +571,107 @@ function updateSlidesList() {
 async function saveProject() {
     await dumpSlideData();
     updateProjectModified(false);
+}
+
+// https://stackoverflow.com/a/73891404
+async function replaceAsync(string, regexp, replacerFunction) {
+    const replacements = await Promise.all(
+        Array.from(string.matchAll(regexp),
+            match => replacerFunction(...match)));
+    let i = 0;
+    return string.replace(regexp, () => replacements[i++]);
+}
+
+function updateNextSlidePreview() {
+    try {
+        const currentSlidePreview = renderedSlides[`${currentSlideIdx},${currentAnimation}`];
+        const nextSlidePreview = renderedSlides[`${currentSlideIdx},${currentAnimation+1}`] ?? renderedSlides[`${currentSlideIdx+1},0`];
+        if (currentSlidePreview)
+            presenterWindow.document.getElementById("currentSlide").src = currentSlidePreview
+        if (nextSlidePreview)
+            presenterWindow.document.getElementById("nextSlide").src = nextSlidePreview
+    } catch {}
+}
+
+let presenterWindow;
+function openPresenterView() {
+    presenterWindow = window.open("", "presenterWindow", "popup");
+    presenterWindow.document.body.innerHTML = `
+        <div style="display:flex;flex-direction: column;align-items: center;padding: 16px;box-sizing: border-box;">
+            <div style="flex:1;display:flex;gap:16px;align-items: center;">
+                <img id=currentSlide>
+                <img id=nextSlide>
+            </div>
+            <h1 style="font-size: 10vw;margin-top: 0;" id="timer"></h1>
+        </div>
+        <style>
+        html,body,body>div {
+            background:#000;
+            color:#FFF;
+            margin:0;
+            width:100%;
+            height:100%;
+        }
+        body>div>div>img{
+            width: calc(50% - 8px);
+        }
+        </style>
+    `;
+    updateNextSlidePreview();
+}
+
+function loadExportData() {
+    allSlides = exportData.allSlides;
+    cachedSlidePreviews = exportData.cachedSlidePreviews;
+    cachedFileData = exportData.cachedFileData;
+    renderedSlides = exportData.renderedSlides;
+    liteModeCheck.checked = true;
+    isEditing = false;
+};
+
+async function exportProject() {
+    await dumpSlideData();
+    await renderSlides();
+    let exportHtml = await (await fetch("index.html", {cache: "no-store"})).text();
+    exportHtml = await replaceAsync(exportHtml, /<script type="text\/javascript" src="([^"]+.js)"><\/script>/g, async (match,js) => {
+        const resText = await (await fetch(js, {cache: "no-store"})).text();
+        return `\x3cscript>\n${resText}\n\x3c/script>`;
+    });
+    exportHtml = await replaceAsync(exportHtml, /<link rel="stylesheet" type="text\/css" href="([^"]+.css)">/g, async (match,css) => {
+        const resText = await (await fetch(css, {cache: "no-store"})).text();
+        return `\x3cstyle>\n${resText}\n\x3c/style>`;
+    });
+    exportHtml = exportHtml.replace("const isEx"+"port = false;", "const isEx"+"port = true;");
+    const exportedData = {allSlides: allSlides.map(e=>({...e,state:null})), cachedSlidePreviews, cachedFileData, renderedSlides};
+    exportHtml = exportHtml.replace("const ex"+"portData = '';", `const ex${""}portData = ${JSON.stringify(exportedData)};`);
+
+    download(new Blob([exportHtml], {type: 'text/html'}), `${PROJECT_NAME}.html`);
+}
+
+async function renderSlides() {
+    isEditing = false;
+    selectSlide(0);
+    selectSlide(0);
+    while (currentSlideIdx < allSlides.length - 1) {
+        nextSlideSoft();
+        const renderIndex = `${currentSlideIdx},${currentAnimation}`;
+        document.querySelectorAll(`.body.${allSlides[previewSlideIdx].id}, .body.${allSlides[previewSlideIdx].id} *`).forEach(e => {
+            e.style.transition = "none";
+        });
+        try {
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            const renderPng = await domtoimage.toPng(slidesPreviewDivInner, {rWidth: 960, rHeight: 540});
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            renderedSlides[renderIndex] = renderPng;
+            document.querySelector("lite-bar").style.backgroundImage = `url(${renderPng})`;
+        } catch {
+            console.error(`Error while rendering ${renderIndex}`);
+        }
+    }
 }
 
 function getEditor() {
@@ -687,14 +852,15 @@ async function fileAdded(file) {
     });
 }
 
-function togglePresenting() {
+function togglePresenting(noFullscreen) {
     isPresenting = !isPresenting;
-    isEditing = !isPresenting;
+    isEditing = !isPresenting && !liteModeCheck.checked;
     if (isPresenting) {
         slidesPreviewDiv.style.scale = "";
         slidesPreviewDiv.style.transform = "";
         document.body.classList.add("presenting");
-        document.body.requestFullscreen();
+        if (!noFullscreen)
+            document.body.requestFullscreen();
     } else {
         document.body.style.cursor = "";
         mouseHidden = false;
@@ -731,6 +897,10 @@ function setupKeybinds() {
             nextSlideSoft();
         }
     }
+    if (e.key === 'Escape') {
+        if (isPresenting)
+            togglePresenting();
+    }
   });
 
   window.addEventListener("contextmenu", (e) => {
@@ -766,18 +936,30 @@ function setupKeybinds() {
       fileAdded(clipboardItem);
     }
   });
+  liteModeCheck.onchange = (e) => isEditing = !liteModeCheck.checked;
 }
 
 async function init() {
     //await initData();
-    await setupStorage(PROJECT_NAME);
+    loadingText.innerText = "Loading data..."
+    if (!isExport)
+        await setupStorage(PROJECT_NAME);
+    if (isExport)
+        loadExportData();
     getEditor();
     updateSlidesList();
     updatePreview();
     updateProjectModified(false);
     setupKeybinds();
     //await loadAllPreviews();
+    loadingText.innerText = "Almost done"
     requestAnimationFrame(animate);
+    if (isExport) {
+        loadingText.innerText = "Loading fonts..."
+        selectSlide(0);selectSlide(0);
+        setTimeout(()=>selectSlide(1),1000);
+    }
+    loadingText.style.display = "none";
 }
 
 init();
