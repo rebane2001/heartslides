@@ -303,6 +303,8 @@ function updatePreview() {
         firefoxUnitsFix(slidesPreviewDivInner);
     }
     updateAnimations();
+    // remove comments from html
+    slidesPreviewDiv.querySelectorAll("*").forEach(e=>e.childNodes.forEach(x=>x.nodeType==Node.COMMENT_NODE&&x.remove()));
     if (isEditing && !isPresenting)
         updatePreviewImage(true);
 }

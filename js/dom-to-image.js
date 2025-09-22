@@ -550,7 +550,8 @@
         }
 
         function escapeXhtml(string) {
-            return string.replace(/#/g, '%23').replace(/\n/g, '%0A');
+            // lyra - add %22 to %27 replace
+            return string.replace(/#/g, '%23').replace(/\n/g, '%0A').replace(/%22/g, '%27');
         }
 
         function width(node) {
