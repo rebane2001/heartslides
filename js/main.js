@@ -415,6 +415,13 @@ function playNextAnimation() {
     document.querySelectorAll(`.body.${allSlides[previewSlideIdx].id}, .body.${allSlides[previewSlideIdx].id} *`).forEach(e => {
         e.classList.add(currentAnimationClass);
     });
+    document.querySelectorAll(`.replayOnAnimation`).forEach(e => {
+        try {
+            e.pause();
+            e.currentTime = 0;
+            e.play();
+        } catch { console.error("Error replaying video", e); }
+    });
     return true;
 }
 
