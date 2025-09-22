@@ -658,7 +658,7 @@ async function exportProject() {
     let exportSummary = `[ Export summary ]\n`;
     await dumpSlideData();
     const time_exportStart = Date.now();
-    //await renderSlides();
+    await renderSlides();
     const time_renderDone = Date.now();
     let exportHtml = await (await fetch("index.html", {cache: "no-store"})).text();
     exportHtml = await replaceAsync(exportHtml, /<script type="text\/javascript" src="([^"]+.js)"><\/script>/g, async (match,js) => {
