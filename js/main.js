@@ -629,18 +629,37 @@ function openPresenterView() {
     updateNextSlidePreview();
 }
 
-function loadExportData() {
-    allSlides = exportData.allSlides;
-    cachedSlidePreviews = exportData.cachedSlidePreviews;
-    cachedFileData = exportData.cachedFileData;
-    renderedSlides = exportData.renderedSlides;
+async function loadExportData() {
+    const expblobrt = await (await fetch(exportData)).blob();
+    const exstream = expblobrt.stream().pipeThrough(new DecompressionStream("gzip"));
+    const exresult = await new Response(exstream).json();
+    allSlides = exresult.allSlides;
+    cachedSlidePreviews = exresult.cachedSlidePreviews;
+    cachedFileData = exresult.cachedFileData;
+    renderedSlides = exresult.renderedSlides;
     liteModeCheck.checked = true;
     isEditing = false;
 };
 
+function getSizeString(byteCount) {
+    if (byteCount < 1024) {
+        return `${Math.floor(byteCount)} B`;
+    }
+    if (byteCount < 1024*1024) {
+        return `${(byteCount/1024).toFixed(2)} kB`;
+    }
+    if (byteCount < 1024*1024*1024) {
+        return `${(byteCount/1024/1024).toFixed(2)} MB`;
+    }
+    return `${(byteCount/1024/1024/1024).toFixed(2)} GB`;
+}
+
 async function exportProject() {
+    let exportSummary = `[ Export summary ]\n`;
     await dumpSlideData();
-    await renderSlides();
+    const time_exportStart = Date.now();
+    //await renderSlides();
+    const time_renderDone = Date.now();
     let exportHtml = await (await fetch("index.html", {cache: "no-store"})).text();
     exportHtml = await replaceAsync(exportHtml, /<script type="text\/javascript" src="([^"]+.js)"><\/script>/g, async (match,js) => {
         const resText = await (await fetch(js, {cache: "no-store"})).text();
@@ -651,10 +670,42 @@ async function exportProject() {
         return `\x3cstyle>\n${resText}\n\x3c/style>`;
     });
     exportHtml = exportHtml.replace("const isEx"+"port = false;", "const isEx"+"port = true;");
+    const time_baseDone = Date.now();
+    exportSummary += `Base HTML: ${getSizeString(exportHtml.length)}\n`;
     const exportedData = {allSlides: allSlides.map(e=>({...e,state:null})), cachedSlidePreviews, cachedFileData, renderedSlides};
-    exportHtml = exportHtml.replace("const ex"+"portData = '';", `const ex${""}portData = ${JSON.stringify(exportedData)};`);
+    exportSummary += `allSlides: ${getSizeString(JSON.stringify(exportedData.allSlides).length)}\n`;
+    exportSummary += `cachedSlidePreviews: ${getSizeString(JSON.stringify(exportedData.cachedSlidePreviews).length)}\n`;
+    exportSummary += `cachedFileData: ${getSizeString(JSON.stringify(exportedData.cachedFileData).length)}\n`;
+    exportSummary += `renderedSlides: ${getSizeString(JSON.stringify(exportedData.renderedSlides).length)}\n`;
 
+    const exportStream = new Blob([JSON.stringify(exportedData)], {
+        type: 'application/json',
+    }).stream().pipeThrough(new CompressionStream("gzip"));
+    const exportCompressed = await new Promise(async (resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener('loadend', (e) => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+        } else {
+            reject(reader.error);
+        }
+        });
+        reader.readAsDataURL(await(await new Response(exportStream)).blob());
+    });
+
+    exportHtml = exportHtml.replace("const ex"+"portData = '';", `const ex${""}portData = ${JSON.stringify(exportCompressed)};`);
+    exportSummary += `Total size: ${getSizeString(exportHtml.length)}\n`;    
+    const time_htmlDone = Date.now();
     download(new Blob([exportHtml], {type: 'text/html'}), `${PROJECT_NAME}.html`);
+    const time_exportDone = Date.now();
+    exportSummary += `---\n`;    
+    exportSummary += `Slide rendering: ${((time_renderDone - time_exportStart)/1000).toFixed(4)}s\n`;    
+    exportSummary += `Base HTML: ${((time_baseDone - time_renderDone)/1000).toFixed(4)}s\n`;    
+    exportSummary += `Complete HTML: ${((time_htmlDone - time_baseDone)/1000).toFixed(4)}s\n`;    
+    exportSummary += `Download: ${((time_exportDone - time_htmlDone)/1000).toFixed(4)}s\n`;    
+    exportSummary += `Total export time: ${((time_exportDone - time_exportStart)/1000).toFixed(4)}s\n`;
+    console.log(exportSummary);
+    alert(exportSummary);
 }
 
 async function renderSlides() {
@@ -671,7 +722,8 @@ async function renderSlides() {
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
-            const renderPng = await domtoimage.toPng(slidesPreviewDivInner, {rWidth: 960, rHeight: 540});
+            //const renderPng = await domtoimage.toPng(slidesPreviewDivInner, {rWidth: 960, rHeight: 540});
+            const renderPng = await domtoimage.toJpeg(slidesPreviewDivInner, {rWidth: 960, rHeight: 540, quality: 0.8});
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
@@ -954,7 +1006,7 @@ async function init() {
     if (!isExport)
         await setupStorage(PROJECT_NAME);
     if (isExport)
-        loadExportData();
+        await loadExportData();
     getEditor();
     updateSlidesList();
     updatePreview();
