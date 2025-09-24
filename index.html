@@ -272,6 +272,28 @@
                 margin-left: 8px;
             }
         }
+
+        slides-overlay {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            border-radius: 8px;
+            display: flex;
+            font-size: 175%;
+            user-select: none;
+            button {
+                border: none;
+                background: none;
+                font-size: inherit;
+                border-radius: inherit;
+                cursor: pointer;
+                &:hover {
+                    background: #FFFE;
+                }
+            }
+            background: #FFF4;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
@@ -312,6 +334,7 @@
     </lite-bar>
     <slides-bottom style="background: pink;grid-area: bottom"><span>lyra rebane</span></slides-bottom>
 </main>
+<slides-overlay style="display:none"><button onclick=prevSlideSoft()>&lt;</button><button onclick=nextSlideSoft()>&gt;</button><button onclick=togglePresenting()>X</button></slides-overlay>
 <script type="text/javascript" src="js/main.js"></script>
 </body>
 </html>

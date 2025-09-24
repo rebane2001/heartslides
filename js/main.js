@@ -11,6 +11,7 @@ const isFirefox = /firefox/i.test(navigator.userAgent);
 
 const loadingText = document.querySelector("#slides-loading");
 const liteModeCheck = document.querySelector("#lite-mode");
+const slidesOverlay = document.querySelector("slides-overlay");
 const slidesAside = document.querySelector("slides-aside");
 const slidesPreview = document.querySelector("slides-preview");
 const slidesPreviewDiv = document.querySelector("slides-preview > div > div");
@@ -49,8 +50,10 @@ let slidesPreviewX = 0;
 let slidesPreviewY = 0;
 slidesPreview.addEventListener("mousedown", (e) => {
     if (isPresenting && (e.which == 1 || e.which == 3)) {
-        if (e.which == 1) nextSlideSoft();
-        if (e.which == 3) prevSlideSoft();
+        if (e.which == 1)
+            e.clientX <  window.innerWidth/5*2 ? prevSlideSoft() : nextSlideSoft();
+        if (e.which == 3)
+            e.clientX >= window.innerWidth/5*2 ? prevSlideSoft() : nextSlideSoft();
         e.preventDefault();
     }
     if (e.which == 1) {
@@ -79,6 +82,7 @@ slidesPreview.addEventListener("mousemove", (e) => {
     lastMouseMove = Date.now();
     if (mouseHidden) {
         document.body.style.cursor = "";
+        if (isPresenting)slidesOverlay.style.display="flex";
         mouseHidden = false;
     }
 });
@@ -337,6 +341,8 @@ function animate() {
     //editor.state.doc.toString();
     if (lastMouseMove + 1000 < Date.now() && isPresenting && !mouseHidden) {
         document.body.style.cursor = "none";
+        slidesOverlay.style.display="none";
+
         mouseHidden = true;
     }
     requestAnimationFrame(animate);
@@ -606,15 +612,17 @@ function updateNextSlidePreview() {
 }
 
 let presenterWindow;
+let presenterTimer;
 function openPresenterView() {
+    presenterTimer = Date.now();
     presenterWindow = window.open("", "presenterWindow", "popup");
     presenterWindow.document.body.innerHTML = `
-        <div style="display:flex;flex-direction: column;align-items: center;padding: 16px;box-sizing: border-box;">
-            <div style="flex:1;display:flex;gap:16px;align-items: center;">
-                <img id=currentSlide>
-                <img id=nextSlide>
+        <div style="display:flex;flex-direction: column;align-items: stretch;padding: 16px;box-sizing: border-box;">
+            <div style="max-height: calc((100vw - 3 * 16px) / 3.1);flex:1;display:flex;gap:16px;align-items: stretch;">
+                <div style="flex:4"><img id=currentSlide></div>
+                <div style="flex:5"><img id=nextSlide></div>
             </div>
-            <h1 style="font-size: 10vw;margin-top: 0;" id="timer"></h1>
+            <h1 style="font-size: 10vw;margin-top: 0;text-align: center;opacity:0.5;font-weight: 400;font-family:monospace,monospace" id="timer"></h1>
         </div>
         <style>
         html,body,body>div {
@@ -624,8 +632,10 @@ function openPresenterView() {
             width:100%;
             height:100%;
         }
-        body>div>div>img{
-            width: calc(50% - 8px);
+        body>div>div>div>img{
+            &>img {
+                width:100%;
+            }
         }
         </style>
     `;
@@ -650,6 +660,11 @@ function openPresenterView() {
             e.preventDefault();
         }
     });
+    presenterWindow.setInterval(()=>{
+        if (currentSlideIdx <= 1) presenterTimer = Date.now();
+        const presenterSeconds = (Date.now()-presenterTimer)/1000;
+        presenterWindow.document.querySelector("#timer").innerText = `${(presenterSeconds/60/60).toFixed().padStart(2,0)}:${((presenterSeconds/60)%60).toFixed().padStart(2,0)}:${(presenterSeconds%60).toFixed().padStart(2,0)}`;
+    },1000)
     updateNextSlidePreview();
 }
 
@@ -971,6 +986,7 @@ function togglePresenting(noFullscreen) {
             document.body.requestFullscreen();
     } else {
         document.body.style.cursor = "";
+        slidesOverlay.style.display="none";
         mouseHidden = false;
         document.body.classList.remove("presenting");
         if (document.fullscreenElement)
