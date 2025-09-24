@@ -296,6 +296,9 @@ function updatePreview() {
     slidesPreviewDivInner.classList.add(allSlides[previewSlideIdx].id);
     if (currentSlideIdx == 0 || lastGlobalState !== allSlides[0].state) {
         slidesPreviewDivGlobal.innerHTML = remapInlineFiles(allSlides[0].code);
+        const liteNotes = allSlides[0].code.split("<!--NOTE:")[1]?.split("-->")?.[0];
+        if (liteNotes)
+            document.querySelector("note-area").innerHTML = liteNotes;
         lastGlobalState = allSlides[0].state;
     }
     slidesPreviewDivInner.innerHTML = stateText;
@@ -626,6 +629,27 @@ function openPresenterView() {
         }
         </style>
     `;
+    presenterWindow.document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            if (isPresenting) {
+                e.preventDefault();
+                prevSlideSoft();
+            }
+        }
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === " ") {
+            if (isPresenting) {
+                e.preventDefault();
+                nextSlideSoft();
+            }
+        }
+    });
+    presenterWindow.document.body.addEventListener("mousedown", (e) => {
+        if (isPresenting && (e.which == 1 || e.which == 3)) {
+            if (e.which == 1) nextSlideSoft();
+            if (e.which == 3) prevSlideSoft();
+            e.preventDefault();
+        }
+    });
     updateNextSlidePreview();
 }
 
@@ -709,6 +733,18 @@ async function exportProject() {
 }
 
 async function renderSlides() {
+    togglePresenting(true);
+    slidesPreviewDiv.style.scale = "none";
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+        preferCurrentTab: true,
+    });
+    const [track] = stream.getVideoTracks();
+    const restrictionTarget = await RestrictionTarget.fromElement(slidesPreviewDiv);
+    await track.restrictTo(restrictionTarget);
+    const imageCapture = new ImageCapture(track);
+
+
+
     isEditing = false;
     selectSlide(0);
     selectSlide(0);
@@ -722,17 +758,28 @@ async function renderSlides() {
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
+            await new Promise(r => setTimeout(r, 32));
             //const renderPng = await domtoimage.toPng(slidesPreviewDivInner, {rWidth: 960, rHeight: 540});
-            const renderPng = await domtoimage.toJpeg(slidesPreviewDivInner, {rWidth: 960, rHeight: 540, quality: 0.8});
+            //const renderPng = await domtoimage.toJpeg(slidesPreviewDivInner, {rWidth: 960, rHeight: 540, quality: 0.8});
+            const renderFrame = await imageCapture.grabFrame();
+            const canvas = document.createElement("canvas");
+            canvas.width = 768;
+            canvas.height = 432;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(renderFrame, 0, 0, canvas.width, canvas.height);
+            const renderPng = canvas.toDataURL('image/jpeg', 0.8);
+
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
             await new Promise(requestAnimationFrame);
             renderedSlides[renderIndex] = renderPng;
             document.querySelector("lite-bar").style.backgroundImage = `url(${renderPng})`;
         } catch {
-            console.error(`Error while rendering ${renderIndex}`);
+           console.error(`Error while rendering ${renderIndex}`);
         }
     }
+    slidesPreviewDiv.style.scale = null;
+    togglePresenting(true);
 }
 
 function getEditor() {
@@ -997,6 +1044,10 @@ function setupKeybinds() {
       fileAdded(clipboardItem);
     }
   });
+  window.onbeforeunload = function(){
+    if (projectModified)
+        return 'Are you sure you want to leave?';
+  };
   liteModeCheck.onchange = (e) => isEditing = !liteModeCheck.checked;
 }
 

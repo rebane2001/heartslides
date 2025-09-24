@@ -67,6 +67,10 @@
                 height: 0px;
                 flex-grow: 0;
                 & > div {
+                    /* https://screen-share.github.io/element-capture/#elements-eligible-for-restriction */
+                    isolation: isolate;
+                    transform-style: flat;
+
                     display: flex;
                     width: 768px;
                     height: 432px;
@@ -282,7 +286,7 @@
         <button onclick=resetZoom()>Reset Zoom</button>
         <button onclick=togglePresenting()>Present</button>
         <button onclick=openPresenterView()>Presenter View</button>
-        <label><input type="checkbox" name="lite-mode" id="lite-mode">lite</label>
+        <label><input type="checkbox" name="lite-mode" id="lite-mode">view-only mode</label>
     </slides-top>
     <slides-aside>
         
@@ -302,6 +306,9 @@
         <button onclick=togglePresenting()>Present</button>
         <button onclick=togglePresenting(true)>Present (no fullscreen)</button>
         <button onclick=openPresenterView()>Presenter View</button>
+        <div style="display:flex;gap:inherit"><button style="flex:1" onclick=prevSlideSoft()>Prev</button><button style="flex:1" onclick=nextSlideSoft()>Next</button></div>
+        <div style="flex:1"></div>
+        <note-area></note-area>
     </lite-bar>
     <slides-bottom style="background: pink;grid-area: bottom"><span>lyra rebane</span></slides-bottom>
 </main>
