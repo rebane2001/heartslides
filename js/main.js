@@ -1,5 +1,4 @@
-// const PROJECT_NAME = "project_1";
-const PROJECT_NAME = "css_bsides_tll_2025";
+let PROJECT_NAME = localStorage.getItem("heartslides-project-name") ?? "sample-project";
 const SLIDE_WIDTH = 768;
 const SLIDE_HEIGHT = 432;
 let isPresenting = false;
@@ -586,6 +585,13 @@ function updateSlidesList() {
     slidesAside.appendChild(slideListAdd);
 }
 
+async function nameProject() {
+    const projName = prompt(`project name?\nExisting: ${await getProjectNames()}`);
+    if (!projName) return;
+    localStorage.setItem("heartslides-project-name", projName);
+    document.location.reload();
+}
+
 async function saveProject() {
     await dumpSlideData();
     updateProjectModified(false);
@@ -732,7 +738,8 @@ async function exportProject() {
         reader.readAsDataURL(await(await new Response(exportStream)).blob());
     });
 
-    exportHtml = exportHtml.replace("const ex"+"portData = '';", `const ex${""}portData = ${JSON.stringify(exportCompressed)};`);
+    exportHtml = exportHtml.replace("const ex"+"portData = '';", `const ex${""}portData = ${JSON.stringify(exportCompressed).replace(/</g,'\\x3c')};`);
+    exportHtml = exportHtml.replace("PROJECT_"+"NAME = ", `PROJECT_${""}NAME = ${JSON.stringify(PROJECT_NAME).replace(/</g,'\\x3c')} //`);
     exportSummary += `Total size: ${getSizeString(exportHtml.length)}\n`;    
     const time_htmlDone = Date.now();
     download(new Blob([exportHtml], {type: 'text/html'}), `${PROJECT_NAME}.html`);
@@ -816,7 +823,8 @@ let filesDir;
 
 async function dumpSlideData() {
     const data = {
-        version: 1.0,
+        name: PROJECT_NAME,
+        version: 1.1,
         allSlides: allSlides.map(e=>({...e,state:null})),
         cachedSlidePreviews
     }
@@ -885,7 +893,14 @@ async function openProjectZip() {
     const zip = new JSZip();
     await zip.loadAsync(data, {createFolders: true});
     if (!zip.file("project.json")) return console.error("Not a valid project file");
-    await projectDir.removeEntry("files", {recursive: true});
+    const newProjectData = JSON.parse(await zip.file("project.json").async("text"));
+    PROJECT_NAME = newProjectData?.name;
+    if (newProjectData.version < 1.1) PROJECT_NAME = prompt("project name to use");
+    localStorage.setItem("heartslides-project-name", PROJECT_NAME);
+    projectDir = await getProjectDir(PROJECT_NAME);
+    try {
+        await projectDir.removeEntry("files", {recursive: true});
+    } catch {}
     filesDir = await projectDir.getDirectoryHandle("files", { create: true });
     const zipEntries = [];
     zip.forEach(e=>zipEntries.push(zip.file(e)));
@@ -934,9 +949,24 @@ async function recurseZipFolder(zip, folderHandle, path) {
     return zip;
 }
 
-async function setupStorage(projectName) {
+async function getProjectNames() {
     const root = await navigator.storage.getDirectory();
-    projectDir = await root.getDirectoryHandle(projectName, { create: true });
+    heartDir = await root.getDirectoryHandle("heartslides", { create: true });
+    const names = [];
+    for await (const value of heartDir.values()) {
+        names.push(value.name);
+    }
+    return names;
+}
+
+async function getProjectDir(projectName) {
+    const root = await navigator.storage.getDirectory();
+    heartDir = await root.getDirectoryHandle("heartslides", { create: true });
+    return await heartDir.getDirectoryHandle(projectName, { create: true });
+}
+
+async function setupStorage(projectName) {
+    projectDir = await getProjectDir(projectName);
     //slidesDir = await projectDir.getDirectoryHandle("slides", { create: true });
     filesDir = await projectDir.getDirectoryHandle("files", { create: true });
     try {
