@@ -294,6 +294,7 @@ function updatePreview() {
     });
     stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
     stateText = remapInlineFiles(stateText);
+    stateText = stateText.replace(".body.SLIDE", `.body.${allSlides[previewSlideIdx].id}`)
     Object.entries(codeReplacements).forEach(([k,v]) => stateText = stateText.replace(k,v));
     [...slidesPreviewDivInner.classList].slice(1).forEach(e=>slidesPreviewDivInner.classList.remove(e));
     slidesPreviewDivInner.classList.add(allSlides[previewSlideIdx].id);
@@ -349,7 +350,7 @@ function animate() {
 
 let currentSlideIdx = 1;
 let previewSlideIdx = 1;
-const SLIDE_TEMPLATE = {name:"",id:"TEMPLATE",code:"<h1>Title</h1>\n<p>text</p>\n<style>.body.TEMPLATE {\n  \n}</style>",state:null}
+const SLIDE_TEMPLATE = {name:"",id:"TEMPLATE",code:"<h1>Title</h1>\n<p>text</p>\n<style>.body.SLIDE {\n  \n}</style>",state:null}
 let allSlides = [
     {name:"global",id:"global",code:"<style>.body {\n  \n}</style>",state:null},
 ];
