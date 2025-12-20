@@ -8,6 +8,7 @@ const exportData = '';
 
 const isFirefox = /firefox/i.test(navigator.userAgent);
 
+const statusText = document.querySelector("#statusText");
 const loadingText = document.querySelector("#slides-loading");
 const liteModeCheck = document.querySelector("#lite-mode");
 const slidesOverlay = document.querySelector("slides-overlay");
@@ -294,7 +295,8 @@ function updatePreview() {
     });
     stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
     stateText = remapInlineFiles(stateText);
-    stateText = stateText.replace(".body.SLIDE", `.body.${allSlides[previewSlideIdx].id}`)
+    stateText = stateText.replace(/\.body\.SLIDE/g, `.body.${allSlides[previewSlideIdx].id}`);
+    if ((/(syntax:\s*['"])</gi).test(stateText)) alert("Please use '\\3c ' for the @property");
     Object.entries(codeReplacements).forEach(([k,v]) => stateText = stateText.replace(k,v));
     [...slidesPreviewDivInner.classList].slice(1).forEach(e=>slidesPreviewDivInner.classList.remove(e));
     slidesPreviewDivInner.classList.add(allSlides[previewSlideIdx].id);
@@ -385,9 +387,14 @@ async function loadAllPreviews() {
     selectSlide(currentSlideIdx);
 }
 
+function updateStatus(text) {
+    statusText.innerText = text;
+}
+
 function selectSlide(i) {
     if (currentSlideIdx == i && previewSlideIdx == i) {
         playNextAnimtionLoop();
+        updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
         return;
     } else {
         currentAnimation = 0;
@@ -405,6 +412,7 @@ function selectSlide(i) {
     lastPreviewUpdate = 0;
     updateNextSlidePreview();
     //updatePreviewImage();
+    updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
 }
 
 let currentAnimation = 0;
