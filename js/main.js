@@ -423,6 +423,7 @@ function playPrevAnimation() {
         e.classList.remove(currentAnimationClass);
     });
     currentAnimation--;
+    updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
     return true;
 }
 
