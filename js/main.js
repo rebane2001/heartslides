@@ -394,7 +394,6 @@ function updateStatus(text) {
 function selectSlide(i) {
     if (currentSlideIdx == i && previewSlideIdx == i) {
         playNextAnimtionLoop();
-        updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
         return;
     } else {
         currentAnimation = 0;
@@ -441,6 +440,7 @@ function playNextAnimation() {
             e.play();
         } catch { console.error("Error replaying video", e); }
     });
+    updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
     return true;
 }
 

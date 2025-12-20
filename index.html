@@ -271,6 +271,9 @@
             &>span:first-child {
                 margin-left: 8px;
             }
+            &>span:last-child {
+                margin-right: 8px;
+            }
         }
 
         slides-overlay {
@@ -333,7 +336,7 @@
         <div style="flex:1"></div>
         <note-area></note-area>
     </lite-bar>
-    <slides-bottom style="background: pink;grid-area: bottom"><span>lyra rebane</span></slides-bottom>
+    <slides-bottom style="background: pink;grid-area: bottom"><span>lyra rebane</span><span style="margin-left:auto" id="statusText"></span></slides-bottom>
 </main>
 <slides-overlay style="display:none"><button onclick=prevSlideSoft()>&lt;</button><button onclick=nextSlideSoft()>&gt;</button><button onclick=togglePresenting()>X</button></slides-overlay>
 <script type="text/javascript" src="js/main.js"></script>
