@@ -441,6 +441,12 @@ function playNextAnimation() {
             e.play();
         } catch { console.error("Error replaying video", e); }
     });
+    document.querySelectorAll(`.playOnAnim${currentAnimation}`).forEach(e => {
+        try {
+            e.currentTime = 0;
+            e.play();
+        } catch { console.error("Error replaying video", e); }
+    });
     updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
     return true;
 }

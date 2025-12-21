@@ -62,11 +62,17 @@
             .then(inlineImages)
             .then(applyOptions)
             .then(function (clone) {
+                // lyra - prevent clone from lingering in memory
                 return makeSvgDataUri(clone,
                     options.width || util.width(node),
                     options.height || util.height(node),
                     options
-                );
+                ).then(cloneUri => {clone.innerHTML = "";return cloneUri});
+                // return makeSvgDataUri(clone,
+                //     options.width || util.width(node),
+                //     options.height || util.height(node),
+                //     options
+                // );
             });
 
         function applyOptions(clone) {
