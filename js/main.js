@@ -443,8 +443,13 @@ function playNextAnimation() {
     });
     document.querySelectorAll(`.playOnAnim${currentAnimation}`).forEach(e => {
         try {
+            const startTime = Date.now();
             e.currentTime = 0;
             e.play();
+            if (e.classList.contains("forceSync")) {
+                setTimeout(()=>e.currentTime = (Date.now()-startTime)/1000, 100);
+                setTimeout(()=>e.currentTime = (Date.now()-startTime)/1000, 1000);
+            }
         } catch { console.error("Error replaying video", e); }
     });
     updateStatus(`Slide ${currentSlideIdx} of ${allSlides.length - 1} (anim-${currentAnimation})`);
