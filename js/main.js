@@ -1018,7 +1018,10 @@ async function dropNewFile(file) {
 }
 
 async function fileAdded(file) {
-    if (!file.type.startsWith("image/") && !file.type.startsWith("image/")) return console.error(`${file.type} not an image!`);
+    if (!file.type.startsWith("image/") && !file.type.startsWith("image/")) {
+        console.error(`${file.type} not an image!`);
+        if (!confirm(`${file.type} not an image!\n\nImport anyways?`)) return;;
+    }
     const newFilename = await dropNewFile(file);
     cachedFileData[newFilename] = await readFile(file, "DataURL");
     editor.dispatch({
