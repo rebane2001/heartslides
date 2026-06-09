@@ -294,9 +294,10 @@ function updatePreview() {
         return replacementString;
     });
     stateText = stateText.replace(/(<[a-z][^<>]*?)>/g, "$1 data-code-index=DATACODEINDEX>").split("DATACODEINDEX").map((e,i) => (e.endsWith("=")?e+i:e)).join("");
+    stateText = stateText.replace(/<(absolute-size|alpha-value|angle-percentage|angle|axis|baseline-position|basic-shape|blend-mode|box-edge|calc-keyword|calc-sum|color-interpolation-method|color|content-distribution|content-position|corner-shape-value|custom-ident|dashed-function|dashed-ident|dimension|display-box|display-inside|display-internal|display-legacy|display-listitem|display-outside|easing-function|filter-function|flex|frequency-percentage|frequency|generic-family|gradient|hex-color|hue-interpolation-method|hue|ident|image|integer|length-percentage|length|line-style|named-color|number|overflow-position|overflow|percentage|position-area|position|ratio|relative-size|resolution|rule-list|self-position|string|system-color|text-edge|time-percentage|time|timeline-range-name|transform-function|url) data-code-index=[0-9]+>/g, "<$1>");
     stateText = remapInlineFiles(stateText);
     stateText = stateText.replace(/\.body\.SLIDE/g, `.body.${allSlides[previewSlideIdx].id}`);
-    if ((/(syntax:\s*['"])</gi).test(stateText)) alert("Please use '\\3c ' for the @property");
+    //if ((/(syntax:\s*['"])</gi).test(stateText)) alert("Please use '\\3c ' for the @property");
     Object.entries(codeReplacements).forEach(([k,v]) => stateText = stateText.replace(k,v));
     [...slidesPreviewDivInner.classList].slice(1).forEach(e=>slidesPreviewDivInner.classList.remove(e));
     slidesPreviewDivInner.classList.add(allSlides[previewSlideIdx].id);
