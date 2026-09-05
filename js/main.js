@@ -246,6 +246,7 @@ function firefoxUnitsFix(div) {
 }
 
 // may be unnecessary
+/* DEAD CODE
 function preloadCode() {
     allSlides.forEach((slide) => {
         slide.code.replace(/```([^\s]+)(.*?)```/gs, (match, lang, code) => {
@@ -263,6 +264,7 @@ function preloadCode() {
         });
     })
 }
+*/
 
 function updatePreview() {
     previewNeedsUpdate = false;
@@ -281,10 +283,46 @@ function updatePreview() {
         const classes = lang.split(";").slice(1).join(" ");
         let highlighted;// = cachedCodeblocks[code.trim() + language];
         if (!highlighted) {
+            const originalCode = code.trim();
+            const filtered = [];
+            let distSub = 0;
+            // make it possible to include <snip-*> elements directly in codeblocks
+            // by default, the snips get placed after/inside elements,
+            // e.g. `this is a <snip-x>keyword here</snip-x>` this is a <span><snip-x>keyword</span> here</snip-x>
+            // but if this is undesired, the snip keyword can be capitalized,
+            // e.g. `this is a <Snip-x>keyword here</snip-x>` this is a <Snip-x><span>keyword</span> here</snip-x>
+            const cleanCode = originalCode.replace(/<\/?[Ss]nip-[^>]*>/g, (match,pos)=>{
+                const shiftSnip = !!/Snip-/.exec(match);
+                filtered.push([pos-distSub-(shiftSnip?1:0),match.replace('Snip-','snip-'),shiftSnip]);
+                distSub += match.length;
+                return "";
+            });
+            let highlightedTemp;
             try {
-                highlighted = hljs.highlight(code.trim(), {language}).value;
+                highlightedTemp = hljs.highlight(cleanCode, {language}).value;
             } catch {
-                highlighted = hljs.highlight(code.trim(), {language:"css"}).value;
+                highlightedTemp = hljs.highlight(cleanCode, {language:"css"}).value;
+            }
+            highlighted = "";
+            let codePos = 0;
+            let isCounting = true;
+            for (let i = 0; i < highlightedTemp.length; i++) {
+                if (isCounting && highlightedTemp[i] == "<")
+                    isCounting = false;
+                if (isCounting) {
+                    const filterMatches = filtered.filter(e => e[0] == codePos && !e[2]);
+                    filterMatches.forEach(e => highlighted += e[1]);
+                }
+                highlighted += highlightedTemp[i];
+                if (isCounting) {
+                    const filterMatches = filtered.filter(e => e[0] == codePos && e[2]);
+                    filterMatches.forEach(e => highlighted += e[1]);
+                }
+                if (isCounting)
+                    codePos++;
+                if (!isCounting && highlightedTemp[i] == ">") {
+                    isCounting = true;
+                }
             }
             //cachedCodeblocks[code.trim() + language] = highlighted;
         }
