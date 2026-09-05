@@ -305,16 +305,26 @@ function updatePreview() {
             }
             highlighted = "";
             let codePos = 0;
+            let cooldown = 0;
             let isCounting = true;
             for (let i = 0; i < highlightedTemp.length; i++) {
                 if (isCounting && highlightedTemp[i] == "<")
                     isCounting = false;
                 if (isCounting) {
+                    if (/^&(lt|gt|amp);/.exec(highlightedTemp.slice(i,i+5))) {
+                        cooldown += highlightedTemp.slice(i,i+5).split(";",1)[0].length;
+                    }
+                    if (cooldown) {
+                        cooldown--;
+                        codePos--;
+                    }
+                }
+                if (isCounting && !cooldown) {
                     const filterMatches = filtered.filter(e => e[0] == codePos && !e[2]);
                     filterMatches.forEach(e => highlighted += e[1]);
                 }
                 highlighted += highlightedTemp[i];
-                if (isCounting) {
+                if (isCounting && !cooldown) {
                     const filterMatches = filtered.filter(e => e[0] == codePos && e[2]);
                     filterMatches.forEach(e => highlighted += e[1]);
                 }
