@@ -310,18 +310,21 @@ function updatePreview() {
             for (let i = 0; i < highlightedTemp.length; i++) {
                 if (isCounting && highlightedTemp[i] == "<")
                     isCounting = false;
+                //console.log(cleanCode[1],codePos, `cooldown=${cooldown}`,highlightedTemp[i] )
+                if (isCounting && !cooldown) {
+                    const filterMatches = filtered.filter(e => e[0] == codePos && !e[2]);
+                    filterMatches.forEach(e => highlighted += e[1]);
+                }
                 if (isCounting) {
-                    if (/^&(lt|gt|amp);/.exec(highlightedTemp.slice(i,i+5))) {
-                        cooldown += highlightedTemp.slice(i,i+5).split(";",1)[0].length;
+                    if (/^&(lt|gt|amp|quot);/.exec(highlightedTemp.slice(i,i+6))) {
+                        cooldown += highlightedTemp.slice(i,i+6).split(";",1)[0].length;
+                        cooldown+=1;
+                        codePos+=1;
                     }
                     if (cooldown) {
                         cooldown--;
                         codePos--;
                     }
-                }
-                if (isCounting && !cooldown) {
-                    const filterMatches = filtered.filter(e => e[0] == codePos && !e[2]);
-                    filterMatches.forEach(e => highlighted += e[1]);
                 }
                 highlighted += highlightedTemp[i];
                 if (isCounting && !cooldown) {
@@ -334,6 +337,7 @@ function updatePreview() {
                     isCounting = true;
                 }
             }
+            //console.log(cleanCode, highlighted.replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"'));
             //cachedCodeblocks[code.trim() + language] = highlighted;
         }
         
