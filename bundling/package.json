@@ -20,5 +20,16 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "codemirror": "^6.0.2",
     "rollup": "^4.50.0"
+  },
+  "overrides": {
+    "@rollup/plugin-node-resolve": {
+      "picomatch": "4.0.4"
+    },
+    "@rollup/pluginutils": {
+      "picomatch": "4.0.4"
+    },
+    "picomatch": {
+      "picomatch": "4.0.4"
+    }
   }
 }
