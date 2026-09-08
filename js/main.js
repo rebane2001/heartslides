@@ -316,7 +316,7 @@ function updatePreview() {
                     filterMatches.forEach(e => highlighted += e[1]);
                 }
                 if (isCounting) {
-                    if (/^&(lt|gt|amp|quot);/.exec(highlightedTemp.slice(i,i+6))) {
+                    if (/^&(lt|gt|amp|quot|#x27);/.exec(highlightedTemp.slice(i,i+6))) {
                         cooldown += highlightedTemp.slice(i,i+6).split(";",1)[0].length;
                         cooldown+=1;
                         codePos+=1;
@@ -337,7 +337,7 @@ function updatePreview() {
                     isCounting = true;
                 }
             }
-            //console.log(cleanCode, highlighted.replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"'));
+            console.log(cleanCode, highlighted.replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#x27;/g,"'"));
             //cachedCodeblocks[code.trim() + language] = highlighted;
         }
         
